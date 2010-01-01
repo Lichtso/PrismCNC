@@ -13,8 +13,8 @@ std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow
 struct Vector {
     float coords[motorCount];
 
-    bool parseMsgPack(MsgPack::Element* vectorElement) {
-        auto vectorElement = dynamic_cast<MsgPack::Array*>(vectorElement);
+    bool parseMsgPack(MsgPack::Element* element) {
+        auto vectorElement = dynamic_cast<MsgPack::Array*>(element);
         if(!vectorElement)
             return false;
         auto vectorVector = vectorElement->getElementsVector();
@@ -131,24 +131,29 @@ void readMotors() {
 }
 
 void writeMotors() {
-    if(vertices.empty()) {
-        std::cout << "no vertices" << std::endl;
-        stopMotors();
+    if(vertices.empty())
         return;
-    }
 
     Vector targetPos = vertices[0].pos,
            targetDiff = targetPos-position;
     float speed = vertices[0].speed,
           targetDist = targetDiff.length(),
           timeLeft = targetDist/speed;
-    const finalProximity = 0.01,
-          slowDown = 0.1;
-
-    if(targetDist == 0) {
+    const float finalProximity = 0.1,
+                slowDown = 0.15;
+    std::cout << targetDist << " " << speed << " " << timeLeft << std::endl;
+    
+    bool finished = true;
+    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+	if(!motors[motorIndex]->isAtPositionInTurns(targetPos.coords[motorIndex]))
+            finished = false; 
+    
+    if(finished) {
         std::cout << "reached vertex" << std::endl;
         vertices.pop_front();
-        return;
+        if(vertices.empty())
+	    stopMotors();
+	return;
     } else if(timeLeft < finalProximity) {
         std::cout << "finalizing vertex" << std::endl;
         for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
@@ -156,13 +161,14 @@ void writeMotors() {
         return;
     } else if(timeLeft <= slowDown) {
         std::cout << "closing in on vertex" << std::endl;
-        speed *= timeLeft/slowDown;
+        timeLeft /= slowDown;
+	timeLeft *= timeLeft;
+	speed *= timeLeft;
     }
 
-    std::cout << targetDist << " " << speed << " " << timeLeft << std::endl;
     Vector velocity = targetDiff.normalized()*speed;
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-        std::cout << motorIndex << " " << position.coords[motorIndex] << " " velocity.coords[motorIndex] << << std::endl;
+        std::cout << motorIndex << " " << position.coords[motorIndex] << " " << velocity.coords[motorIndex] << std::endl;
         motors[motorIndex]->runInHz(velocity.coords[motorIndex]);
     }
 }
@@ -170,7 +176,7 @@ void writeMotors() {
 void networkUpdate() {
     for(auto& iter : serverSocket.get()->clients) {
         netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
-        msgPackSocket << MsgPack__Factory(MapHeader(5));
+        msgPackSocket << MsgPack__Factory(MapHeader(3));
         msgPackSocket << MsgPack::Factory("type");
         msgPackSocket << MsgPack::Factory("status");
         msgPackSocket << MsgPack::Factory("verticesLeft");
@@ -233,7 +239,7 @@ int main(int argc, char** argv) {
             auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!speedElement)
                 return;
-            targetSpeed = speedElement->getValue<float>();
+            auto targetSpeed = speedElement->getValue<float>();
             iter = map.find("vertices");
             if(iter == map.end())
                 return;
@@ -251,15 +257,17 @@ int main(int argc, char** argv) {
             return;
         } else if(type == "interrupt") {
             vertices.clear();
-            Vector targetPos = position;
-            targetPos.coords[2] += 10;
-            vertices.push_back(targetPos);
+            Vertex target;
+            target.speed = 3;
+            target.pos = position;
+            target.pos.coords[2] += 10;
+            vertices.push_back(target);
             return;
         } else if(type == "reset") {
             resetMachine();
             return;
         }
-        std::function<bool(L6470*)> command;
+	std::function<bool(L6470*)> command;
         if(type == "run") {
             if(!vertices.empty())
                 return;
@@ -272,7 +280,7 @@ int main(int argc, char** argv) {
             command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
         } else
             return;
-        iter = map.find("motor");
+	iter = map.find("motor");
         if(iter != map.end()) {
             auto motorElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!motorElement)
