@@ -27,7 +27,7 @@ function parseSVGPath(data, factor, rounding) {
         var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0,
             interalAdvance = (isRelative && interalAdvance);
         for(var i = 1; i < accumulator.length; i+=count) {
-            var command = {"type": type, "points": []};
+            var command = {"type":type, "points":[]};
             for(var j = 0; j < count; ++j) {
                 var value = round(parseFloat(accumulator[i+j])*factor+currentPoint[j%2]*isRelative);
                 if(interalAdvance)
@@ -43,7 +43,7 @@ function parseSVGPath(data, factor, rounding) {
     function replicateLinear(coordIndex) {
         var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
         for(var i = 1; i < accumulator.length; ++i) {
-            var command = {"type": "linear", "points": [currentPoint[0], currentPoint[1]]};
+            var command = {"type":"linear", "points":[currentPoint[0], currentPoint[1]]};
             command.points[coordIndex] = round(parseFloat(accumulator[i])*factor+currentPoint[coordIndex]*isRelative);
             polygons[polygons.length-1].commands.push(command);
         }
@@ -62,7 +62,7 @@ function parseSVGPath(data, factor, rounding) {
             case "z":
             case "Z":
                 if(accumulator.length != 1 || polygons[polygons.length-1].commands.length == 0) return false;
-                polygons[polygons.length-1].commands.push({"type": "end"});
+                polygons[polygons.length-1].commands.push({"type":"end"});
             break;
             case "l":
             case "L":
@@ -105,13 +105,13 @@ function parseSVGPath(data, factor, rounding) {
                 for(var i = 1; i < accumulator.length; i += 7) {
                     var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
                     var command = {
-                        "type": "arc",
-                        "width": round(parseFloat(accumulator[i])*factor),
-                        "height": round(parseFloat(accumulator[i+1])*factor),
-                        "rotation": round(parseFloat(accumulator[i+2])*factor),
-                        "flagA": (accumulator[i+3] == "1"),
-                        "flagB": (accumulator[i+4] == "1"),
-                        "points": [
+                        "type":"arc",
+                        "width":round(parseFloat(accumulator[i])*factor),
+                        "height":round(parseFloat(accumulator[i+1])*factor),
+                        "rotation":round(parseFloat(accumulator[i+2])*factor),
+                        "flagA":(accumulator[i+3] == "1"),
+                        "flagB":(accumulator[i+4] == "1"),
+                        "points":[
                             round((parseFloat(accumulator[i+5])*factor+currentPoint[0]*isRelative)),
                             round((parseFloat(accumulator[i+6])*factor+currentPoint[1]*isRelative))
                         ]
@@ -176,6 +176,11 @@ function parseSVGPath(data, factor, rounding) {
     return polygons;
 }
 
+function calculatePointLineDist(p0x, p0y, p1x, p1y, p2x, p2y) {
+    var diffX = p2x-p1x, diffY = p2y-p1y;
+    return Math.abs((p2y-p1y)*p0x-(p2x-p1x)*p0y+p2x*p1y-p2y*p1x)/Math.sqrt(diffX*diffX+diffY*diffY);
+}
+
 function calculateLinearLength(p0x, p0y, p1x, p1y) {
     var diffX = p1x-p0x, diffY = p1y-p0y;
     return Math.sqrt(diffX*diffX+diffY*diffY);
@@ -190,8 +195,9 @@ function calculateQuardaticLength(dx0, dy0, dx1, dy1, t) {
     return (t+b/a)*Math.sqrt(c+2*b*t+a*t*t)+(d/Math.sqrt(a*a*a))*Math.asinh((a*t+b)/Math.sqrt(d));
 }
 
+// http://www.circuitwizard.de/metapost/arclength.pdf
 function calculateCubicLength(dx0, dy0, dx1, dy1, dx2, dy2, t) {
-    
+
 }
 
 function calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, intersection) {
@@ -200,8 +206,10 @@ function calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, inter
         diffCx = p0x-p2x, diffCy = p0y-p2y,
         denominator = diffAx*diffBy-diffBx*diffAy;
     if(denominator == 0.0) {
-        //TODO: Parallel
-        return undefined;
+        if(calculatePointLineDist(p1x, p1y, p2x, p2y, p3x, p3y) > 0.0)
+            return false;
+        //TODO: On same line
+        return true;
     }
     denominator = 1.0/denominator;
     var s = (diffBx*diffCy-diffBy*diffCx)*denominator,
@@ -213,33 +221,53 @@ function calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, inter
     return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
 }
 
-function calculatePolygonSelfIntersections(polygon) {
-    var intersections = [], intersection = [0,0];
-    for(var i = 0; i < polygon.points.length-4; i += 2) {
-        var endJ = polygon.points.length,
-            p0x, p0y, p1x = polygon.points[i], p1y = polygon.points[i+1];
+function iteratePolygon(polygon, start, end, callback) {
+    for(var i = start; i < polygon.points.length-end; i += 2) {
+        var p0x, p0y, p1x = polygon.points[i], p1y = polygon.points[i+1];
         if(i == 0) {
             p0x = polygon.points[polygon.points.length-2];
             p0y = polygon.points[polygon.points.length-1];
-            endJ -= 2;
         }else{
             p0x = polygon.points[i-2];
             p0y = polygon.points[i-1];
         }
+        callback(i, p0x, p0y, p1x, p1y);
+    }
+}
+
+function calculatePolygonSelfIntersection(polygon) {
+    var result = [], intersection = [0,0];
+    iteratePolygon(polygon, 0, 4, function(i, p0x, p0y, p1x, p1y) {
+        var endJ = polygon.points.length;
+        if(i == 0) endJ -= 2;
         for(var j = i+4; j < endJ; j += 2)
             if(calculateLineIntersection(p0x, p0y, p1x, p1y,
-                polygon.points[j-2], polygon.points[j-1], polygon.points[j], polygon.points[j+1], intersection)) {
-                intersections.push({"indexA":i,"indexB":j,"point":intersection});
-            }
+                polygon.points[j-2], polygon.points[j-1], polygon.points[j], polygon.points[j+1], intersection))
+                result.push({"indexA":i, "indexB":j, "point":intersection});
+    });
+    return result;
+}
+
+function calculatePolygonsIntersection(polygonA, polygonB) {
+    var result = [], intersection = [0,0];
+    iteratePolygon(polygonA, 0, 0, function(i, p0x, p0y, p1x, p1y) {
+        iteratePolygon(polygonB, 0, 0, function(j, p2x, p2y, p3x, p3y) {
+            if(calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y))
+                result.push({"indexA":i, "indexB":j, "point":intersection});
+        });
+    });
+    return result;
+}
+
+function iteratePolygonTree(polygon, callback) {
+    callback(polygon);
+    for(var i in polygon.children) {
+        callback(polygon.children[i]);
+        iteratePolygonTree(polygon.children[i], callback);
     }
-    return intersections;
 }
 
-function calculatePolygonsIntersections(polygonA, polygonB) {
-
-}
-
-function isPointInsidePolygon(polygon, pointX, pointY, ctx) {
+function isPointInsidePolygon(polygon, pointX, pointY) {
     if(pointX < polygon.boundingBox[0] || pointX > polygon.boundingBox[2] ||
        pointY < polygon.boundingBox[1] || pointY > polygon.boundingBox[3])
        return false;
@@ -260,6 +288,7 @@ function postProcessPath(polygons) {
     var tStep = 0.1, minDist = 10.0, maxCircleVaricance = 0.001;
     for(var i in polygons) {
         var polygon = polygons[i];
+        polygon.children = [];
 
         //Calculate polygon
         polygon.points = [];
@@ -270,6 +299,7 @@ function postProcessPath(polygons) {
                 lastPoint = lastPoint.slice(lastPoint.length-2, lastPoint.length);
             }
 
+            //TODO: Add auto resolution
             switch(command.type) {
                 case "linear":
                     polygon.points.push(command.points[0]);
@@ -278,10 +308,7 @@ function postProcessPath(polygons) {
                 case "quadratic":
                     var p0x = lastPoint[0], p0y = lastPoint[1],
                         p1x = command.points[0], p1y = command.points[1],
-                        p2x = command.points[2], p2y = command.points[3],
-                        distA = calculateLinearLength(p0x, p0y, p1x, p1y),
-                        distB = calculateLinearLength(p1x, p1y, p2x, p2y);
-                    console.log(distA, distB);
+                        p2x = command.points[2], p2y = command.points[3];
                     for(var t = tStep; t <= 1; t += tStep) {
                         var u = 1-t, a = u*u, b = 2*u*t, c = t*t;
                         polygon.points.push(p0x*a+p1x*b+p2x*c);
@@ -292,11 +319,7 @@ function postProcessPath(polygons) {
                     var p0x = lastPoint[0], p0y = lastPoint[1],
                         p1x = command.points[0], p1y = command.points[1],
                         p2x = command.points[2], p2y = command.points[3],
-                        p3x = command.points[4], p3y = command.points[5],
-                        distA = calculateLinearLength(p0x, p0y, p1x, p1y),
-                        distB = calculateLinearLength(p1x, p1y, p2x, p2y),
-                        distC = calculateLinearLength(p2x, p2y, p3x, p3y);
-                    console.log((distA+distB+distC));
+                        p3x = command.points[4], p3y = command.points[5];
                     for(var t = tStep; t <= 1; t += tStep) {
                         var u = 1-t, a = u*u*u, b = 3*u*u*t, c = 3*u*t*t, d = t*t*t;
                         polygon.points.push(p0x*a+p1x*b+p2x*c+p3x*d);
@@ -332,15 +355,16 @@ function postProcessPath(polygons) {
         polygon.centerOfMass[0] *= 1.0/(6*polygon.signedArea);
         polygon.centerOfMass[1] *= 1.0/(6*polygon.signedArea);
 
+        //Merge start and end point
         if(calculateLinearLength(polygon.points[0], polygon.points[1],
             polygon.points[polygon.points.length-2], polygon.points[polygon.points.length-1]) < minDist) {
             polygon.points.splice(polygon.points.length-2, 2);
         }
 
         //Check for self intersection
-        var selfIntersections = calculatePolygonSelfIntersections(polygon);
-        if(selfIntersections.length > 0)
-            return {"type":"SelfIntersection","data":selfIntersections};
+        var selfIntersection = calculatePolygonSelfIntersection(polygon);
+        if(selfIntersection.length > 0)
+            return {"type":"SelfIntersection", "data":selfIntersection};
 
         //Circle detection
         var distances = [], avgDistance = 0, variance = 0;
@@ -357,9 +381,20 @@ function postProcessPath(polygons) {
         variance /= polygon.points.length/2-1;
         if(variance <= maxCircleVaricance)
             polygon.radius = avgDistance;
-
-        console.log(JSON.stringify(polygon));
     }
 
+    //Build bollean geometry tree
+    for(var i in polygons)
+        iteratePolygonTree(polygons[i], function(outerPolygon) {
+            for(var j = 0; j < polygons.length; ++j) {
+                var innerPolygon = polygons[j];
+                if(innerPolygon != outerPolygon && isPointInsidePolygon(outerPolygon, innerPolygon.points[0], innerPolygon.points[1])) {
+                    outerPolygon.children.push(innerPolygon);
+                    polygons.splice(j--, 1);
+                }
+            }
+        });
+
+    console.log(JSON.stringify(polygons, null, 4));
     return true;
 }
