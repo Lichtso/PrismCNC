@@ -250,12 +250,16 @@ function calculatePolygonSelfIntersection(polygon) {
 
 function calculatePolygonsIntersection(polygonA, polygonB) {
     var result = [], intersection = [0,0];
-    iteratePolygon(polygonA, 0, 0, function(i, p0x, p0y, p1x, p1y) {
-        iteratePolygon(polygonB, 0, 0, function(j, p2x, p2y, p3x, p3y) {
-            if(calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y))
-                result.push({"indexA":i, "indexB":j, "point":intersection});
+    if(polygonA.boundingBox[0] < polygonB.boundingBox[2] &&
+       polygonA.boundingBox[2] > polygonB.boundingBox[0] &&
+       polygonA.boundingBox[1] < polygonB.boundingBox[3] &&
+       polygonA.boundingBox[3] > polygonB.boundingBox[1])
+        iteratePolygon(polygonA, 0, 0, function(i, p0x, p0y, p1x, p1y) {
+            iteratePolygon(polygonB, 0, 0, function(j, p2x, p2y, p3x, p3y) {
+                if(calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y))
+                    result.push({"indexA":i, "indexB":j, "point":intersection});
+            });
         });
-    });
     return result;
 }
 
@@ -329,31 +333,9 @@ function postProcessPath(polygons) {
             }
         }
 
-        //Claculate Direction, Area, CenterOfMass and BoundingBox
-        polygon.signedArea = 0;
-        polygon.centerOfMass = [0,0];
-        polygon.boundingBox = [polygon.points[0], polygon.points[1], polygon.points[0], polygon.points[1]];
-        for(var j = 2; j < polygon.points.length; j += 2) {
-            polygon.signedArea += polygon.points[j-2]*polygon.points[j+1]-polygon.points[j]*polygon.points[j-1];
-
-            var factor = (polygon.points[j-2]*polygon.points[j+1]-polygon.points[j]*polygon.points[j-1]);
-            polygon.centerOfMass[0] += (polygon.points[j-2]+polygon.points[j])*factor;
-            polygon.centerOfMass[1] += (polygon.points[j-1]+polygon.points[j+1])*factor;
-
-            if(polygon.points[j] < polygon.boundingBox[0])
-                polygon.boundingBox[0] = polygon.points[j];
-            else if(polygon.points[j] > polygon.boundingBox[2])
-                polygon.boundingBox[2] = polygon.points[j];
-
-            if(polygon.points[j+1] < polygon.boundingBox[1])
-                polygon.boundingBox[1] = polygon.points[j+1];
-            else if(polygon.points[j+1] > polygon.boundingBox[3])
-                polygon.boundingBox[3] = polygon.points[j+1];
-        }
-        polygon.direction = (polygon.signedArea > 0.0) ? "CW" : "CCW";
-        polygon.signedArea *= 0.5;
-        polygon.centerOfMass[0] *= 1.0/(6*polygon.signedArea);
-        polygon.centerOfMass[1] *= 1.0/(6*polygon.signedArea);
+        //Check if at least one triangle
+        if(polygon.points.length < 6)
+            throw {"type":"NoArea", "data":polygon};
 
         //Merge start and end point
         if(calculateLinearLength(polygon.points[0], polygon.points[1],
@@ -362,9 +344,75 @@ function postProcessPath(polygons) {
         }
 
         //Check for self intersection
-        var selfIntersection = calculatePolygonSelfIntersection(polygon);
-        if(selfIntersection.length > 0)
-            return {"type":"SelfIntersection", "data":selfIntersection};
+        var intersection = calculatePolygonSelfIntersection(polygon);
+        if(intersection.length > 0) {
+            intersection.polygon = polygon;
+            throw {"type":"SelfIntersection", "data":intersection};
+        }
+
+        //Find and eliminate redundant lines
+        var p0x = polygon.points[polygon.points.length-4], p0y = polygon.points[polygon.points.length-3],
+            p1x = polygon.points[polygon.points.length-2], p1y = polygon.points[polygon.points.length-1];
+        for(var j = 0; j < polygon.points.length; j += 2) {
+            var p2x = polygon.points[j], p2y = polygon.points[j+1];
+
+            var diffAx = p1x-p0x, diffAy = p1y-p0y,
+                diffBx = p2x-p1x, diffBy = p2y-p1y,
+                aux = false;
+            if(diffAx == 0.0)
+                aux = (diffBx == 0.0);
+            else
+                aux = (Math.abs(diffAy/diffAx-diffBy/diffBx) < 0.001);
+
+            if(aux) {
+                /*var diffA = Math.sqrt(diffAx*diffAx+diffAy*diffAy),
+                    diffB = Math.sqrt(diffBx*diffBx+diffBy*diffBy),
+                    diffCx = p2x-p0x, diffCy = p2y-p0y,
+                    diffC = Math.sqrt(diffCx*diffCx+diffCy*diffCy);
+                if(diffA+diffB > diffC+0.001)
+                    throw {"type":"SpikeEdges", "data":{"polygon":polygon, "index":j}};*/
+
+                if(j > 0)
+                    polygon.points.splice(j-2, 2);
+                else
+                    polygon.points.splice(polygon.points.length-2, 2);
+            }
+            p0x = p1x; p0y = p1y;
+            p1x = p2x; p1y = p2y;
+        }
+
+        //Claculate Direction, Area, CenterOfMass and BoundingBox
+        polygon.signedArea = 0;
+        polygon.centerOfMass = [0,0];
+        polygon.boundingBox = [polygon.points[0], polygon.points[1], polygon.points[0], polygon.points[1]];
+        p1x = polygon.points[polygon.points.length-2];
+        p1y = polygon.points[polygon.points.length-1];
+        for(var j = 0; j < polygon.points.length; j += 2) {
+            var p2x = polygon.points[j], p2y = polygon.points[j+1];
+
+            polygon.signedArea += p1x*p2y-p2x*p1y;
+
+            var factor = (p1x*p2y-p2x*p1y);
+            polygon.centerOfMass[0] += (p1x+p2x)*factor;
+            polygon.centerOfMass[1] += (p1y+p2y)*factor;
+
+            if(p2x < polygon.boundingBox[0])
+                polygon.boundingBox[0] = p2x;
+            else if(p2x > polygon.boundingBox[2])
+                polygon.boundingBox[2] = p2x;
+
+            if(p2y < polygon.boundingBox[1])
+                polygon.boundingBox[1] = p2y;
+            else if(p2y > polygon.boundingBox[3])
+                polygon.boundingBox[3] = p2y;
+
+            p1x = p2x;
+            p1y = p2y;
+        }
+        polygon.direction = (polygon.signedArea > 0.0) ? "CW" : "CCW";
+        polygon.signedArea *= 0.5;
+        polygon.centerOfMass[0] *= 1.0/(6*polygon.signedArea);
+        polygon.centerOfMass[1] *= 1.0/(6*polygon.signedArea);
 
         //Circle detection
         var distances = [], avgDistance = 0, variance = 0;
@@ -383,6 +431,20 @@ function postProcessPath(polygons) {
             polygon.radius = avgDistance;
     }
 
+    //Check intersections
+    for(var j = 0; j < polygons.length; ++j) {
+        var polygonA = polygons[j];
+        for(var j = 0; j < polygons.length; ++j) {
+            var polygonB = polygons[j];
+            intersection = calculatePolygonsIntersection(polygonA, polygonB);
+            if(polygonA != polygonB && intersection.length > 0) {
+                intersection.polygonA = polygonA;
+                intersection.polygonB = polygonB;
+                throw {"type":"ParaIntersection", "data":intersection};
+            }
+        }
+    }
+
     //Build bollean geometry tree
     for(var i in polygons)
         iteratePolygonTree(polygons[i], function(outerPolygon) {
@@ -396,5 +458,4 @@ function postProcessPath(polygons) {
         });
 
     console.log(JSON.stringify(polygons, null, 4));
-    return true;
 }
