@@ -274,31 +274,18 @@ function calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, inter
     return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
 }
 
-function iteratePolygon(polygon, start, end, callback) {
-    for(var i = start; i < polygon.points.length-end; i += 2) {
-        var p0x, p0y, p1x = polygon.points[i], p1y = polygon.points[i+1];
+function iteratePoints(points, start, end, callback) {
+    for(var i = start; i < points.length-end; i += 2) {
+        var p0x, p0y, p1x = points[i], p1y = points[i+1];
         if(i == 0) {
-            p0x = polygon.points[polygon.points.length-2];
-            p0y = polygon.points[polygon.points.length-1];
+            p0x = points[points.length-2];
+            p0y = points[points.length-1];
         }else{
-            p0x = polygon.points[i-2];
-            p0y = polygon.points[i-1];
+            p0x = points[i-2];
+            p0y = points[i-1];
         }
         callback(i, p0x, p0y, p1x, p1y);
     }
-}
-
-function calculatePolygonSelfIntersection(polygon) {
-    var result = [], intersection = [0,0];
-    iteratePolygon(polygon, 0, 4, function(i, p0x, p0y, p1x, p1y) {
-        var endJ = polygon.points.length;
-        if(i == 0) endJ -= 2;
-        for(var j = i+4; j < endJ; j += 2)
-            if(calculateLineIntersection(p0x, p0y, p1x, p1y,
-                polygon.points[j-2], polygon.points[j-1], polygon.points[j], polygon.points[j+1], intersection))
-                result.push({"indexA":i, "indexB":j, "point":intersection});
-    });
-    return result;
 }
 
 function calculatePolygonsIntersection(polygonA, polygonB) {
@@ -307,9 +294,9 @@ function calculatePolygonsIntersection(polygonA, polygonB) {
        polygonA.boundingBox[2] > polygonB.boundingBox[0] &&
        polygonA.boundingBox[1] < polygonB.boundingBox[3] &&
        polygonA.boundingBox[3] > polygonB.boundingBox[1])
-        iteratePolygon(polygonA, 0, 0, function(i, p0x, p0y, p1x, p1y) {
-            iteratePolygon(polygonB, 0, 0, function(j, p2x, p2y, p3x, p3y) {
-                if(calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y))
+        iteratePoints(polygonA.points, 0, 0, function(i, p0x, p0y, p1x, p1y) {
+           iteratePoints(polygonB.points, 0, 0, function(j, p2x, p2y, p3x, p3y) {
+                if(calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, intersection))
                     result.push({"indexA":i, "indexB":j, "point":intersection});
             });
         });
@@ -371,7 +358,9 @@ function generateOutline(polygon, accuracyDistance, offset) {
                     p2x = command.points[2], p2y = command.points[3],
                     tStep = calculateQuardaticLength(p0x, p0y, p1x, p1y, p2x, p2y, 1.0)+offset*0.5*Math.PI;
                 tStep = 1.0/Math.round(tStep/accuracyDistance);
-                if(tStep > 1.0) tStep = 0.5;
+                //TODO: Improve tStep approximation algorithm (taking in account negative/positive offsets of convex/convace curves)
+                if(tStep <= 0.0) tStep = 0.5;
+                if(tStep >= 0.5) tStep = 0.5;
                 for(var t = (offset == 0.0) ? tStep : 0.0; t <= 1+tStep*0.5; t += tStep) {
                     var u = 1-t, a = u*u, b = 2*u*t, c = t*t;
                     var dx = 2*(u*p0x-2*t*p1x+p1x+t*p2x),
@@ -388,7 +377,9 @@ function generateOutline(polygon, accuracyDistance, offset) {
                     p3x = command.points[4], p3y = command.points[5],
                     tStep = calculateCubicLength(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, 1.0)+offset*0.5*Math.PI;
                 tStep = 1.0/Math.round(tStep/accuracyDistance);
-                if(tStep > 1.0) tStep = 0.5;
+                //TODO: Improve tStep approximation algorithm (taking in account negative/positive offsets of convex/convace curves)
+                if(tStep <= 0.0) tStep = 0.5;
+                if(tStep >= 0.5) tStep = 0.5;
                 for(var t = (offset == 0.0) ? tStep : 0.0; t <= 1+tStep*0.5; t += tStep) {
                     var t2 = t*t, u = 1-t, u2 = u*u, a = u2*u, b = 3*u2*t, c = 3*u*t2, d = t*t2;
                     var dx = -3*(p0x*(t-1)*(t-1)+t*(-2*p2x+3*p2x*t-p3x*t)+p1x*(4*t-3*t2-1)),
@@ -477,6 +468,15 @@ function generateOutline(polygon, accuracyDistance, offset) {
     }
 
     //TODO: Check for self intersection
+    iteratePoints(points, 0, 4, function(i, p0x, p0y, p1x, p1y) {
+        var endJ = points.length, intersection = [0,0];
+        if(i == 0) endJ -= 2;
+        for(var j = i+4; j < endJ; j += 2)
+            if(calculateLineIntersection(p0x, p0y, p1x, p1y,
+                points[j-2], points[j-1], points[j], points[j+1], intersection)) {
+
+                }
+    });
 
     return points;
 }
@@ -543,7 +543,7 @@ function postProcessPath(polygons) {
     }
 
     //Check intersections
-    /*for(var j = 0; j < polygons.length; ++j) {
+    for(var j = 0; j < polygons.length; ++j) {
         var polygonA = polygons[j];
         for(var j = 0; j < polygons.length; ++j) {
             var polygonB = polygons[j];
@@ -567,7 +567,7 @@ function postProcessPath(polygons) {
                     polygons.splice(j--, 1);
                 }
             }
-        });*/
+        });
 
     console.log(JSON.stringify(polygons, null, 4));
 }
