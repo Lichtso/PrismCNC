@@ -1,3 +1,5 @@
+var accuracyDistance = 2.0, maxCircleVaricance = 0.001;;
+
 function parseSVGPath(data, factor, rounding) {
     var polygons = [], currentPoint = [0,0], accumulator = [], number = "";
     if(!rounding) rounding = 1.0;
@@ -192,30 +194,9 @@ function calculatePointLineDist(p0x, p0y, p1x, p1y, p2x, p2y) {
     return Math.abs(diffY*p0x-diffX*p0y+p2x*p1y-p2y*p1x)/Math.sqrt(diffX*diffX+diffY*diffY);
 }
 
-function calculateLinearLength(p0x, p0y, p1x, p1y) {
+function calculateLineLength(p0x, p0y, p1x, p1y) {
     var diffX = p1x-p0x, diffY = p1y-p0y;
     return Math.sqrt(diffX*diffX+diffY*diffY);
-}
-
-// http://math.stackexchange.com/questions/12186/arc-length-of-bézier-curves
-function calculateQuardaticLength(p0x, p0y, p1x, p1y, p2x, p2y, t) {
-    var d0x = p1x-p0x, d0y = p1y-p0y,
-        d1x = p2x-p1x, d1y = p2y-p1y,
-        d2x = p3x-p2x, d2y = p3y-p2y,
-        a = (dx1-dx0)*(dx1-dx0)+(dy1-dy0)*(dy1-dy0),
-        b = dx0*(dx1-dx0)+dy0*(dy1-dy0),
-        c = dx0*dx0+dy0*dy0,
-        d = a*c-b*b;
-    return (t+b/a)*Math.sqrt(c+2*b*t+a*t*t)+(d/Math.sqrt(a*a*a))*Math.asinh((a*t+b)/Math.sqrt(d));
-}
-
-//TODO: http://www.circuitwizard.de/metapost/arclength.pdf
-function calculateCubicLength(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, t) {
-    // Approximation
-    return (calculateLinearLength(p0x, p0y, p1x, p1y)+
-            calculateLinearLength(p1x, p1y, p2x, p2y)+
-            calculateLinearLength(p2x, p2y, p3x, p3y)+
-            calculateLinearLength(p0x, p0y, p3x, p3y))*0.5;
 }
 
 function calculateLineIntersection(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, intersection) {
@@ -328,8 +309,27 @@ function isPointInsidePolygon(polygon, pointX, pointY) {
     return intersections%2 == 1;
 }
 
-function generateOutline(polygon, accuracyDistance, offset) {
-    var points = [];
+function generateCurve(points, curve, offset, tStep, callback) {
+    var point = [0,0], lastX = curve[0], lastY = curve[1], length = 0.0;
+    for(var t = tStep; t <= 1+tStep*0.5; t += tStep) {
+        var u = 1-t;
+        callback(point, curve, offset, t, u, t*t, u*u);
+        length += calculateLineLength(lastX, lastY, point[0], point[1]);
+        lastX = point[0];
+        lastY = point[1];
+    }
+    tStep = 1.0/Math.round(length/accuracyDistance);
+    if(tStep >= 0.5) tStep = 0.5;
+    for(var t = (offset == 0.0) ? tStep : 0.0; t <= 1+tStep*0.5; t += tStep) {
+        var u = 1-t;
+        callback(point, curve, offset, t, u, t*t, u*u);
+        points = points.concat(point);
+    }
+    return points;
+}
+
+function generateOutline(polygon, offset) {
+    var points = [], tStep = 0.1;
     offset = (polygon.signedArea > 0.0) ? -offset : offset;
 
     for(var j in polygon.commands) {
@@ -339,6 +339,8 @@ function generateOutline(polygon, accuracyDistance, offset) {
 
         switch(command.type) {
             case "linear":
+                // (1-t)*p0+t*p1
+                // p1-p0
                 var dx = command.points[0]-lastPoint[0],
                     dy = command.points[1]-lastPoint[1],
                     factor = Math.sqrt(dx*dx+dy*dy);
@@ -353,41 +355,30 @@ function generateOutline(polygon, accuracyDistance, offset) {
                 }
             break;
             case "quadratic":
-                var p0x = lastPoint[0], p0y = lastPoint[1],
-                    p1x = command.points[0], p1y = command.points[1],
-                    p2x = command.points[2], p2y = command.points[3],
-                    tStep = calculateQuardaticLength(p0x, p0y, p1x, p1y, p2x, p2y, 1.0)+offset*0.5*Math.PI;
-                tStep = 1.0/Math.round(tStep/accuracyDistance);
-                //TODO: Improve tStep approximation algorithm (taking in account negative/positive offsets of convex/convace curves)
-                if(tStep <= 0.0) tStep = 0.5;
-                if(tStep >= 0.5) tStep = 0.5;
-                for(var t = (offset == 0.0) ? tStep : 0.0; t <= 1+tStep*0.5; t += tStep) {
-                    var u = 1-t, a = u*u, b = 2*u*t, c = t*t;
-                    var dx = 2*(u*p0x-2*t*p1x+p1x+t*p2x),
-                        dy = 2*(u*p0y-2*t*p1y+p1y+t*p2y),
+                // (1-t)^2*p0+2*(1-t)*t*p1+t^2*p2
+                // 2*(p0*(t-1)-2*p1*t+p1+p2*t)
+                var curve = [lastPoint[0], lastPoint[1]].concat(command.points);
+                points = generateCurve(points, curve, offset, tStep, function(point, curve, offset, t, u, t2, u2) {
+                    var a = t-1, b = 1-2*t, c = 2*u*t;
+                    var dx = a*curve[0]+b*curve[2]+t*curve[4],
+                        dy = a*curve[1]+b*curve[3]+t*curve[5],
                         factor = offset/Math.sqrt(dx*dx+dy*dy);
-                    points.push(p0x*a+p1x*b+p2x*c-dy*factor);
-                    points.push(p0y*a+p1y*b+p2y*c+dx*factor);
-                }
+                    point[0] = u2*curve[0]+c*curve[2]+t2*curve[4]-factor*dy;
+                    point[1] = u2*curve[1]+c*curve[3]+t2*curve[5]+factor*dx;
+                });
             break;
             case "cubic":
-                var p0x = lastPoint[0], p0y = lastPoint[1],
-                    p1x = command.points[0], p1y = command.points[1],
-                    p2x = command.points[2], p2y = command.points[3],
-                    p3x = command.points[4], p3y = command.points[5],
-                    tStep = calculateCubicLength(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y, 1.0)+offset*0.5*Math.PI;
-                tStep = 1.0/Math.round(tStep/accuracyDistance);
-                //TODO: Improve tStep approximation algorithm (taking in account negative/positive offsets of convex/convace curves)
-                if(tStep <= 0.0) tStep = 0.5;
-                if(tStep >= 0.5) tStep = 0.5;
-                for(var t = (offset == 0.0) ? tStep : 0.0; t <= 1+tStep*0.5; t += tStep) {
-                    var t2 = t*t, u = 1-t, u2 = u*u, a = u2*u, b = 3*u2*t, c = 3*u*t2, d = t*t2;
-                    var dx = -3*(p0x*(t-1)*(t-1)+t*(-2*p2x+3*p2x*t-p3x*t)+p1x*(4*t-3*t2-1)),
-                        dy = -3*(p0y*(t-1)*(t-1)+t*(-2*p2y+3*p2y*t-p3y*t)+p1y*(4*t-3*t2-1)),
+                // (1-t)^3*p0+3*(1-t)^2*t*p1+3*(1-t)*t^2*p2+t^3*p3
+                // -3*(p0*(t-1)^2+p1*(-3*t^2 +4*t -1) +t*(3*p2*t -2*p2 -p3*t))
+                var curve = [lastPoint[0], lastPoint[1]].concat(command.points);
+                points = generateCurve(points, curve, offset, tStep, function(point, curve, offset, t, u, t2, u2) {
+                    var a = t2-2*t+1, b = 4*t-3*t2-1, c = 3*t2-2*t, d = u2*u, e = 3*u2*t, f = 3*u*t2, g = t*t2;
+                    var dx = a*curve[0]+b*curve[2]+c*curve[4]-t2*curve[6],
+                        dy = a*curve[1]+b*curve[3]+c*curve[5]-t2*curve[7],
                         factor = offset/Math.sqrt(dx*dx+dy*dy);
-                    points.push(p0x*a+p1x*b+p2x*c+p3x*d-dy*factor);
-                    points.push(p0y*a+p1y*b+p2y*c+p3y*d+dx*factor);
-                }
+                    point[0] = d*curve[0]+e*curve[2]+f*curve[4]+g*curve[6]+factor*dy;
+                    point[1] = d*curve[1]+e*curve[3]+f*curve[5]+g*curve[7]-factor*dx;
+                });
             break;
         }
 
@@ -482,13 +473,12 @@ function generateOutline(polygon, accuracyDistance, offset) {
 }
 
 function postProcessPath(polygons) {
-    var accuracyDistance = 2.0, maxCircleVaricance = 0.001;
     for(var i in polygons) {
         var polygon = polygons[i];
         polygon.children = [];
 
         //Calculate outline
-        polygon.points = generateOutline(polygon, accuracyDistance, 0.0);
+        polygon.points = generateOutline(polygon, 0.0);
 
         //Claculate Direction, Area, CenterOfMass and BoundingBox
         polygon.signedArea = 0;
@@ -526,7 +516,7 @@ function postProcessPath(polygons) {
         //Circle detection
         var distances = [], avgDistance = 0, variance = 0;
         for(var j = 0; j < polygon.points.length; j += 2) {
-            var distance = calculateLinearLength(polygon.centerOfMass[0], polygon.centerOfMass[1], polygon.points[j], polygon.points[j+1]);
+            var distance = calculateLineLength(polygon.centerOfMass[0], polygon.centerOfMass[1], polygon.points[j], polygon.points[j+1]);
             avgDistance += distance;
             distances.push(distance);
         }
