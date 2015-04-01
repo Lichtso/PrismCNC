@@ -1,0 +1,21 @@
+{
+  "name": "PrismCNC",
+  "version": "0.0.0",
+  "homepage": "https://github.com/Lichtso/PrismCNC",
+  "authors": [
+    "Markus Felten <Markus.Felten@gmx.de>"
+  ],
+  "description": "frontend for PrismCNC",
+  "keywords": [
+    "CNC"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
