@@ -1,15 +1,16 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 
-void setPin(size_t pin, size_t value, bool mode = false) {
+bool setPin(size_t pin, size_t value, bool mode = false) {
     const char* key = (mode) ? "mode" : "pin";
     char buffer[256];
     sprintf(buffer, "/sys/devices/virtual/misc/gpio/%s/gpio%d", key, pin);
-    int fp = open(path, O_RDWR);
+    int fp = open(buffer, O_RDWR);
     if(!fp) return false;
     lseek(fp, 0, SEEK_SET);
     memset(buffer, 0, 4);
@@ -24,10 +25,10 @@ class SPI {
     int handle;
     public:
     size_t slaveCount;
-    SPI();
+    SPI(size_t slaveCount);
     ~SPI();
     uint32_t getMaxFrequency();
-    bool transfer(size_t slaveIndex, int8_t* buffer, uint64_t size);
+    bool transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size);
 };
 
 SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
