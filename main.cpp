@@ -71,8 +71,8 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
 
     struct spi_ioc_transfer transfer;
     memset(&transfer, 0, sizeof(transfer));
-    transfer.tx_buf = buffer;
-    transfer.rx_buf = buffer;
+    transfer.tx_buf = (uint64_t)buffer;
+    transfer.rx_buf = (uint64_t)buffer;
     transfer.len = size;
     transfer.speed_hz = 500000;
     //transfer.cs_change = 1;
@@ -81,11 +81,12 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     for(size_t i = 0; i < slaveCount; ++i)
         setPin(lowestPin-slaveCount+i, 1);
 
-    return (ioctl(handle, SPI_IOC_MESSAGE(1), &xfer) == 0);
+    return (ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) == 0);
 }
 
 int main(int argc, char** argv) {
-
+    SPI bus(3);
+    printf("Max speed: %d Hz\n", spi.getMaxFrequency());
 
     return 0;
 }
