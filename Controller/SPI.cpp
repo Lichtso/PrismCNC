@@ -1,10 +1,6 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
+#include "SPI.h"
 
 bool setPin(size_t pin, size_t value, bool mode = false) {
     const char* key = (mode) ? "mode" : "pin";
@@ -19,17 +15,6 @@ bool setPin(size_t pin, size_t value, bool mode = false) {
     close(fp);
     return true;
 }
-
-class SPI {
-    static const size_t lowestPin = 11;
-    int handle;
-    public:
-    size_t slaveCount;
-    SPI(size_t slaveCount);
-    ~SPI();
-    uint32_t getMaxFrequency();
-    bool transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size);
-};
 
 SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
     for(size_t i = lowestPin-slaveCount; i < lowestPin; ++i)
@@ -82,11 +67,4 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
         setPin(lowestPin-slaveCount+i, 1);
 
     return (ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) == 0);
-}
-
-int main(int argc, char** argv) {
-    SPI bus(3);
-    printf("Max speed: %d Hz\n", spi.getMaxFrequency());
-
-    return 0;
 }
