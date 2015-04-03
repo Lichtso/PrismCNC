@@ -63,7 +63,7 @@ class L6470 {
     public:
     SPI* bus;
     size_t slaveIndex;
-    StepperDriver(SPI* bus, size_t slaveIndex);
+    L6470(SPI* bus, size_t slaveIndex);
     //Param register commands
     bool setParam(ParamName param, uint32_t value);
     bool getParam(ParamName param, uint32_t& value);
@@ -84,5 +84,5 @@ class L6470 {
     //Reset commands
     bool resetHome();
     bool resetDevice();
-    bool resetFlags(uint16_t& status);
+    bool resetFlags(uint32_t& status);
 };

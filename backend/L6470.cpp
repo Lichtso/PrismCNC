@@ -8,14 +8,14 @@ bool L6470::set(uint8_t len, uint8_t key, uint32_t value) {
     buffer[0] = key;
     for(size_t i = 1; i < 4; ++i)
         buffer[i] = (value >> (24-8*i)) & 0xFF;
-    return spi->transfer(slaveIndex, buffer, (len) ? 4 : 1);
+    return bus->transfer(slaveIndex, buffer, (len) ? 4 : 1);
 }
 
-bool L6470::get(uint8_t len, uint8_t key, uint32_t value) {
+bool L6470::get(uint8_t len, uint8_t key, uint32_t& value) {
     uint8_t buffer[4];
     buffer[0] = key;
     buffer[1] = buffer[2] = buffer[3] = 0x00;
-    if(!spi->transfer(slaveIndex, buffer, 4))
+    if(!bus->transfer(slaveIndex, buffer, 4))
         return false;
     value = 0x00;
     for(size_t i = 1; i < 4; ++i)
@@ -83,6 +83,6 @@ bool L6470::resetDevice() {
     return set(0, 0xC0, 0);
 }
 
-bool L6470::resetFlags(uint16_t& status) {
+bool L6470::resetFlags(uint32_t& status) {
     return get(2, 0xD0, status);
 }
