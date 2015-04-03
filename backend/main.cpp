@@ -1,4 +1,4 @@
-#include "StepperDriver.h"
+#include "L6470.h"
 
 int main(int argc, char** argv) {
     SPI bus(3);

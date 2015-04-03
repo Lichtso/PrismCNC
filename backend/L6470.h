@@ -57,13 +57,32 @@ const uint8_t paramSize[] = {
     16 //STATUS
 };
 
-class StepperDriver {
+class L6470 {
     bool set(uint8_t len, uint8_t key, uint32_t value);
     bool get(uint8_t len, uint8_t key, uint32_t& value);
     public:
     SPI* bus;
     size_t slaveIndex;
     StepperDriver(SPI* bus, size_t slaveIndex);
-    bool setParam(uint8_t key, uint32_t value);
-    bool getParam(uint8_t key, uint32_t& value);
+    //Param register commands
+    bool setParam(ParamName param, uint32_t value);
+    bool getParam(ParamName param, uint32_t& value);
+    //Constant speed commands
+    bool run(uint32_t speed, bool forward);
+    bool goUntil(uint32_t speed, bool forward, bool mark);
+    bool releaseSW(bool forward, bool mark);
+    //Absolute positioning commands
+    bool goHome(bool mark);
+    bool goTo(uint32_t position);
+    bool goTo(uint32_t position, bool forward);
+    //Motion commands
+    bool stepClock(bool forward);
+    bool move(uint32_t microSteps, bool forward);
+    //Stop commands
+    bool stop(bool immediately);
+    bool setIdle(bool immediately);
+    //Reset commands
+    bool resetHome();
+    bool resetDevice();
+    bool resetFlags(uint16_t& status);
 };
