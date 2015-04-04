@@ -6,5 +6,5 @@ project(${NAME})
 
 file(GLOB SOURCES *.cpp)
 
-add_definitions(-O3 -std=c++1y)
+add_definitions(-O3 -std=c++0x)
 add_executable(${NAME} ${SOURCES})
