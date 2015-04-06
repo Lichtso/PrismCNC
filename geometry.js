@@ -1,4 +1,4 @@
-var accuracyDistance = 1.0, maxCircleVaricance = 0.001;
+var accuracyDistance = 1.0, tStep = 0.1, maxCircleVaricance = 0.001;
 
 function parseSVGPath(data, factor, rounding) {
     var polygons = [], currentPoint = [0,0], accumulator = [], number = "";
@@ -52,6 +52,11 @@ function parseSVGPath(data, factor, rounding) {
         }
     }
 
+    function assertArgument(condition) {
+        if(condition)
+            throw {"type":"Invalid", "data":"SVG path argument count"};
+    }
+
     function seperate() {
         if(!accumulator.length) return;
         if(!polygons.length && accumulator[0][0].toLowerCase() != "m")
@@ -59,65 +64,55 @@ function parseSVGPath(data, factor, rounding) {
         switch(accumulator[0][0]) {
             case "m":
             case "M":
-                if(accumulator.length % 2 != 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length % 2 != 1);
                 polygons.push({"commands": []});
                 parseCommand("linear", 2, null, true);
             break;
             case "z":
             case "Z":
-                if(accumulator.length != 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length != 1);
                 //if(polygons[polygons.length-1].commands.length < 3)
                 //    throw {"type":"Invalid", "data":"SVG path command count"};
                 //polygons[polygons.length-1].commands.push({"type":"end"});
             break;
             case "l":
             case "L":
-                if(accumulator.length % 2 != 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length % 2 != 1);
                 parseCommand("linear", 2);
             break;
             case "h":
             case "H":
-                if(accumulator.length <= 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length <= 1);
                 parseLinearCommand(0);
             break;
             case "v":
             case "V":
-                if(accumulator.length <= 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length <= 1);
                 parseLinearCommand(1);
             break;
             case "q":
             case "Q":
-                if(accumulator.length % 4 != 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length % 4 != 1);
                 parseCommand("quadratic", 4);
             break;
             case "t":
             case "T":
-                if(accumulator.length % 2 != 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length % 2 != 1);
                 parseCommand("quadratic", 2, mirrorPoint);
             break;
             case "c":
             case "C":
-                if(accumulator.length % 6 != 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length % 6 != 1);
                 parseCommand("cubic", 6);
             break;
             case "s":
             case "S":
-                if(accumulator.length % 4 != 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length % 4 != 1);
                 parseCommand("cubic", 4, mirrorPoint);
             break;
             case "a":
             case "A":
-                if(accumulator.length % 7 != 1)
-                    throw {"type":"Invalid", "data":"SVG path argument count"};
+                assertArgument(accumulator.length % 7 != 1);
                 for(var i = 1; i < accumulator.length; i += 7) {
                     var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
                     var command = {
@@ -255,6 +250,14 @@ function calculateLineIntersection(lineA, lineB, intersection) {
     return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
 }
 
+function traversePolygonTree(polygon, callback) {
+    callback(polygon);
+    for(var i in polygon.children) {
+        callback(polygon.children[i]);
+        traversePolygonTree(polygon.children[i], callback);
+    }
+}
+
 function getLineOfPolygon(points, i) {
     i *= 2;
     var h = (i > 0) ? i : points.length;
@@ -272,18 +275,10 @@ function calculatePolygonsIntersection(polygonA, polygonB) {
             for(var j = 0; j < polygonB.points.length/2; ++j) {
                 var lineB = getLineOfPolygon(polygonB.points, i);
                 if(calculateLineIntersection(lineA, lineB, intersection))
-                    result.push({"indexA":i, "indexB":j, "point":intersection});
+                    result.push({"polygonA": polygonA, "polygonB": polygonB, "indexA":i, "indexB":j, "point":intersection});
             }
         }
     return result;
-}
-
-function traversePolygonTree(polygon, callback) {
-    callback(polygon);
-    for(var i in polygon.children) {
-        callback(polygon.children[i]);
-        traversePolygonTree(polygon.children[i], callback);
-    }
 }
 
 function isPointInsidePolygon(polygon, pointX, pointY) {
@@ -303,7 +298,23 @@ function isPointInsidePolygon(polygon, pointX, pointY) {
     return intersections%2 == 1;
 }
 
-function generateCurve(points, curve, offset, tStep, callback) {
+function isPolygonCircle(points) {
+    var distances = [], avgDistance = 0, variance = 0;
+    for(var j = 0; j < polygon.points.length; j += 2) {
+        var distance = calculateLineLength(polygon.centerOfMass[0], polygon.centerOfMass[1], polygon.points[j], polygon.points[j+1]);
+        avgDistance += distance;
+        distances.push(distance);
+    }
+    avgDistance /= polygon.points.length/2;
+    for(var j in distances) {
+        var diff = distances[j]-avgDistance;
+        variance += diff*diff;
+    }
+    variance /= polygon.points.length/2-1;
+    return (variance <= maxCircleVaricance) ? avgDistance : -1;
+}
+
+function generateCurve(points, curve, offset, callback) {
     var point = [0,0], lastX = curve[0], lastY = curve[1], length = 0.0;
     for(var t = tStep; t <= 1+tStep*0.5; t += tStep) {
         var u = 1-t;
@@ -317,18 +328,19 @@ function generateCurve(points, curve, offset, tStep, callback) {
     for(var t = (offset == 0.0) ? tStep : 0.0; t <= 1+tStep*0.5; t += tStep) {
         var u = 1-t;
         callback(point, curve, offset, t, u, t*t, u*u);
-        points = points.concat(point);
+        points.push(point[0]);
+        points.push(point[1]);
     }
-    return points;
 }
 
-function generateOutline(polygon, offset) {
-    var points = [], intersection = [0,0], tStep = 0.1;
-    offset = (polygon.signedArea > 0.0) ? -offset : offset;
+function generateOutline(original, offset) {
+    var polygon = {"points":[], "commands":original.commands}, intersection = [0,0];
+    // ^ TODO ^
+    //if(original.signedArea > 0.0) offset *= -1;
 
-    for(var j in polygon.commands) {
-        var command = polygon.commands[j], pointIndex = points.length, lastPoint;
-        lastPoint = polygon.commands[(j > 0) ? j-1 : polygon.commands.length-1].points;
+    for(var j in original.commands) {
+        var command = original.commands[j], pointIndex = polygon.points.length, lastPoint;
+        lastPoint = original.commands[(j > 0) ? j-1 : original.commands.length-1].points;
         lastPoint = lastPoint.slice(lastPoint.length-2, lastPoint.length);
 
         switch(command.type) {
@@ -342,17 +354,17 @@ function generateOutline(polygon, offset) {
                     continue;
                 factor = offset/factor;
                 if(offset != 0.0) {
-                    points.push(lastPoint[0]-dy*factor);
-                    points.push(lastPoint[1]+dx*factor);
+                    polygon.points.push(lastPoint[0]-dy*factor);
+                    polygon.points.push(lastPoint[1]+dx*factor);
                 }
-                points.push(command.points[0]-dy*factor);
-                points.push(command.points[1]+dx*factor);
+                polygon.points.push(command.points[0]-dy*factor);
+                polygon.points.push(command.points[1]+dx*factor);
             break;
             case "quadratic":
                 // Position: (1-t)^2*p0+2*(1-t)*t*p1+t^2*p2
                 // Derivative: 2*(p0*(t-1)-2*p1*t+p1+p2*t)
                 var curve = [lastPoint[0], lastPoint[1]].concat(command.points);
-                points = generateCurve(points, curve, offset, tStep, function(point, curve, offset, t, u, t2, u2) {
+                generateCurve(polygon.points, curve, offset, function(point, curve, offset, t, u, t2, u2) {
                     var a = t-1, b = 1-2*t, c = 2*u*t;
                     var dx = a*curve[0]+b*curve[2]+t*curve[4],
                         dy = a*curve[1]+b*curve[3]+t*curve[5],
@@ -365,7 +377,7 @@ function generateOutline(polygon, offset) {
                 // Position: (1-t)^3*p0+3*(1-t)^2*t*p1+3*(1-t)*t^2*p2+t^3*p3
                 // Derivative: -3*(p0*(t-1)^2+p1*(-3*t^2+4*t-1)+t*(3*p2*t-2*p2-p3*t))
                 var curve = [lastPoint[0], lastPoint[1]].concat(command.points);
-                points = generateCurve(points, curve, offset, tStep, function(point, curve, offset, t, u, t2, u2) {
+                generateCurve(polygon.points, curve, offset, function(point, curve, offset, t, u, t2, u2) {
                     var a = t2-2*t+1, b = 4*t-3*t2-1, c = 3*t2-2*t, d = u2*u, e = 3*u2*t, f = 3*u*t2, g = t*t2;
                     var dx = a*curve[0]+b*curve[2]+c*curve[4]-t2*curve[6],
                         dy = a*curve[1]+b*curve[3]+c*curve[5]-t2*curve[7],
@@ -377,46 +389,44 @@ function generateOutline(polygon, offset) {
         }
 
         if(offset != 0.0 && pointIndex >= 4) {
-            calculateLineIntersection(points.slice(pointIndex-4, pointIndex), points.slice(pointIndex, pointIndex+4), intersection);
-            points[pointIndex] = intersection[0];
-            points[pointIndex+1] = intersection[1];
-            points.splice(pointIndex-2, 2);
+            calculateLineIntersection(polygon.points.slice(pointIndex-4, pointIndex), polygon.points.slice(pointIndex, pointIndex+4), intersection);
+            polygon.points[pointIndex] = intersection[0];
+            polygon.points[pointIndex+1] = intersection[1];
+            polygon.points.splice(pointIndex-2, 2);
         }
     }
 
     if(offset != 0.0) {
-        calculateLineIntersection(points.slice(0, 4), points.slice(points.length-4, points.length), intersection);
-        points[0] = intersection[0];
-        points[1] = intersection[1];
-        points.splice(points.length-2, 2);
+        calculateLineIntersection(polygon.points.slice(0, 4), polygon.points.slice(polygon.points.length-4, polygon.points.length), intersection);
+        polygon.points[0] = intersection[0];
+        polygon.points[1] = intersection[1];
+        polygon.points.splice(polygon.points.length-2, 2);
     }
 
     //Check if at least one triangle
-    if(points.length < 6)
-        throw {"type":"NoArea", "data":polygon};
+    if(polygon.points.length < 6)
+        throw {"type":"NoArea", "data":original};
 
     //Find and eliminate redundant lines
-    for(var j = 0; j < points.length; j += 2) {
+    for(var j = 0; j < polygon.points.length; j += 2) {
         var p0x, p0y, p1x, p1y;
-
         if(j >= 4) {
-            p0x = points[j-4];
-            p0y = points[j-3];
-            p1x = points[j-2];
-            p1y = points[j-1];
+            p0x = polygon.points[j-4];
+            p0y = polygon.points[j-3];
+            p1x = polygon.points[j-2];
+            p1y = polygon.points[j-1];
         }else if(j >= 2) {
-            p0x = points[points.length-2];
-            p0y = points[points.length-1];
-            p1x = points[j-2];
-            p1y = points[j-1];
+            p0x = polygon.points[polygon.points.length-2];
+            p0y = polygon.points[polygon.points.length-1];
+            p1x = polygon.points[j-2];
+            p1y = polygon.points[j-1];
         }else{
-            p0x = points[points.length-4];
-            p0y = points[points.length-3];
-            p1x = points[points.length-2];
-            p1y = points[points.length-1];
+            p0x = polygon.points[polygon.points.length-4];
+            p0y = polygon.points[polygon.points.length-3];
+            p1x = polygon.points[polygon.points.length-2];
+            p1y = polygon.points[polygon.points.length-1];
         }
-
-        var p2x = points[j], p2y = points[j+1];
+        var p2x = polygon.points[j], p2y = polygon.points[j+1];
 
         var diffAx = p1x-p0x, diffAy = p1y-p0y,
             diffBx = p2x-p1x, diffBy = p2y-p1y,
@@ -434,89 +444,72 @@ function generateOutline(polygon, offset) {
                 diffCx = p2x-p0x, diffCy = p2y-p0y,
                 diffC = Math.sqrt(diffCx*diffCx+diffCy*diffCy);
             if(diffA+diffB > diffC+0.001)
-                throw {"type":"SpikeEdges", "data":{"polygon":polygon, "index":j}};
+                throw {"type":"SpikeEdges", "data":{"polygon":original, "index":j}};
 
             if(j > 0)
-                points.splice(j-2, 2);
+                polygon.points.splice(j-2, 2);
             else
-                points.splice(points.length-2, 2);
+                polygon.points.splice(polygon.points.length-2, 2);
             j -= 2;
         }
     }
 
-    //TODO: Check for self intersection
-    for(var i = 0; i < points.length/2; ++i) {
-        var lineA = getLineOfPolygon(points, i);
-        for(var j = (i > 0) ? points.length/2-1 : points.length/2-2; j >= i+2; --j) {
-            var lineB = getLineOfPolygon(points, j);
+    //Check for self intersection
+    polygon.intersections = false;
+    for(var i = 0; i < polygon.points.length/2; ++i) {
+        var lineA = getLineOfPolygon(polygon.points, i);
+        var jEnd = (i > 0) ? polygon.points.length/2-1 : polygon.points.length/2-2;
+        for(var j = i+2; j <= jEnd; ++j) {
+            var lineB = getLineOfPolygon(polygon.points, j);
             if(calculateLineIntersection(lineA, lineB, intersection)) {
-                points.splice(i*2, (j-i)*2, intersection[0], intersection[1]);
-                break;
+                polygon.points.splice(i*2, (j-i)*2, intersection[0], intersection[1]);
+                lineA = getLineOfPolygon(polygon.points, i);
+                polygon.intersections = true;
             }
         }
     }
 
-    return points;
+    //Claculate Direction, Area, CenterOfMass and BoundingBox
+    polygon.signedArea = 0;
+    polygon.centerOfMass = [0,0];
+    polygon.boundingBox = [polygon.points[0], polygon.points[1], polygon.points[0], polygon.points[1]];
+    p1x = polygon.points[polygon.points.length-2];
+    p1y = polygon.points[polygon.points.length-1];
+    for(var j = 0; j < polygon.points.length; j += 2) {
+        var p2x = polygon.points[j], p2y = polygon.points[j+1];
+
+        polygon.signedArea += p1x*p2y-p2x*p1y;
+
+        var factor = (p1x*p2y-p2x*p1y);
+        polygon.centerOfMass[0] += (p1x+p2x)*factor;
+        polygon.centerOfMass[1] += (p1y+p2y)*factor;
+
+        if(p2x < polygon.boundingBox[0])
+            polygon.boundingBox[0] = p2x;
+        else if(p2x > polygon.boundingBox[2])
+            polygon.boundingBox[2] = p2x;
+
+        if(p2y < polygon.boundingBox[1])
+            polygon.boundingBox[1] = p2y;
+        else if(p2y > polygon.boundingBox[3])
+            polygon.boundingBox[3] = p2y;
+
+        p1x = p2x;
+        p1y = p2y;
+    }
+    polygon.direction = (polygon.signedArea > 0.0) ? "CW" : "CCW";
+    polygon.signedArea *= 0.5;
+    polygon.centerOfMass[0] *= 1.0/(6*polygon.signedArea);
+    polygon.centerOfMass[1] *= 1.0/(6*polygon.signedArea);
+
+    return polygon;
 }
 
 function postProcessPath(polygons, offset) {
     for(var i in polygons) {
-        var polygon = polygons[i];
-        polygon.children = [];
-
         //Calculate outline
-        polygon.points = generateOutline(polygon, offset);
-
-        //Claculate Direction, Area, CenterOfMass and BoundingBox
-        polygon.signedArea = 0;
-        polygon.centerOfMass = [0,0];
-        polygon.boundingBox = [polygon.points[0], polygon.points[1], polygon.points[0], polygon.points[1]];
-        p1x = polygon.points[polygon.points.length-2];
-        p1y = polygon.points[polygon.points.length-1];
-        for(var j = 0; j < polygon.points.length; j += 2) {
-            var p2x = polygon.points[j], p2y = polygon.points[j+1];
-
-            polygon.signedArea += p1x*p2y-p2x*p1y;
-
-            var factor = (p1x*p2y-p2x*p1y);
-            polygon.centerOfMass[0] += (p1x+p2x)*factor;
-            polygon.centerOfMass[1] += (p1y+p2y)*factor;
-
-            if(p2x < polygon.boundingBox[0])
-                polygon.boundingBox[0] = p2x;
-            else if(p2x > polygon.boundingBox[2])
-                polygon.boundingBox[2] = p2x;
-
-            if(p2y < polygon.boundingBox[1])
-                polygon.boundingBox[1] = p2y;
-            else if(p2y > polygon.boundingBox[3])
-                polygon.boundingBox[3] = p2y;
-
-            p1x = p2x;
-            p1y = p2y;
-        }
-        polygon.direction = (polygon.signedArea > 0.0) ? "CW" : "CCW";
-        polygon.signedArea *= 0.5;
-        polygon.centerOfMass[0] *= 1.0/(6*polygon.signedArea);
-        polygon.centerOfMass[1] *= 1.0/(6*polygon.signedArea);
-
-        //Circle detection
-        var distances = [], avgDistance = 0, variance = 0;
-        for(var j = 0; j < polygon.points.length; j += 2) {
-            var distance = calculateLineLength(polygon.centerOfMass[0], polygon.centerOfMass[1], polygon.points[j], polygon.points[j+1]);
-            avgDistance += distance;
-            distances.push(distance);
-        }
-        avgDistance /= polygon.points.length/2;
-        for(var j in distances) {
-            var diff = distances[j]-avgDistance;
-            variance += diff*diff;
-        }
-        variance /= polygon.points.length/2-1;
-        if(variance <= maxCircleVaricance) {
-            polygon.radius = avgDistance;
-            polygon.radiusVariance = variance;
-        }
+        polygons[i] = generateOutline(polygons[i], 0);
+        polygons[i].children = [];
     }
 
     //Check intersections
@@ -526,11 +519,8 @@ function postProcessPath(polygons, offset) {
             var polygonB = polygons[j];
             if(polygonA == polygonB) continue;
             intersection = calculatePolygonsIntersection(polygonA, polygonB);
-            if(intersection.length > 0) {
-                intersection.polygonA = polygonA;
-                intersection.polygonB = polygonB;
+            if(intersection.length > 0)
                 throw {"type":"ParaIntersection", "data":intersection};
-            }
         }
     }
 
