@@ -179,9 +179,19 @@ function parseSVGPath(data, factor, rounding) {
         seperate();
         accumulator = [data[i]];
     }
+    if(number != "")
+        accumulator.push(number);
     seperate();
 
     return polygons;
+}
+
+function drawLine(line, color) {
+    ctx.beginPath();
+    ctx.moveTo(line[0], line[1]);
+    ctx.lineTo(line[2], line[3]);
+    ctx.strokeStyle = color;
+    ctx.stroke();
 }
 
 function calculatePointLineDist(p0x, p0y, p1x, p1y, p2x, p2y) {
@@ -262,6 +272,13 @@ function getLineOfPolygon(points, i) {
     i *= 2;
     var h = (i > 0) ? i : points.length;
     return [points[h-2], points[h-1], points[i], points[i+1]];
+}
+
+function splicePolygon(points, reverse, insert, i, j) {
+    if(reverse)
+        return points.slice(i*2, j*2).concat(insert);
+    else
+        return points.slice(0, i*2).concat(insert).concat(points.slice(j*2));
 }
 
 function calculatePolygonsIntersection(polygonA, polygonB) {
@@ -362,7 +379,7 @@ function generateOutline(original, offset) {
             break;
             case "quadratic":
                 // Position: (1-t)^2*p0+2*(1-t)*t*p1+t^2*p2
-                // Derivative: 2*(p0*(t-1)-2*p1*t+p1+p2*t)
+                // Derivative: 2*((t-1)*p0+(1-2*t)*p1+t*p2)
                 var curve = [lastPoint[0], lastPoint[1]].concat(command.points);
                 generateCurve(polygon.points, curve, offset, function(point, curve, offset, t, u, t2, u2) {
                     var a = t-1, b = 1-2*t, c = 2*u*t;
@@ -375,7 +392,7 @@ function generateOutline(original, offset) {
             break;
             case "cubic":
                 // Position: (1-t)^3*p0+3*(1-t)^2*t*p1+3*(1-t)*t^2*p2+t^3*p3
-                // Derivative: -3*(p0*(t-1)^2+p1*(-3*t^2+4*t-1)+t*(3*p2*t-2*p2-p3*t))
+                // Derivative: -3*((t^2-2*t+1)*p0+(4*t-3*t^2-1)*p1+(3*t^2-2*t)*p2+t^2*p3)
                 var curve = [lastPoint[0], lastPoint[1]].concat(command.points);
                 generateCurve(polygon.points, curve, offset, function(point, curve, offset, t, u, t2, u2) {
                     var a = t2-2*t+1, b = 4*t-3*t2-1, c = 3*t2-2*t, d = u2*u, e = 3*u2*t, f = 3*u*t2, g = t*t2;
@@ -458,11 +475,11 @@ function generateOutline(original, offset) {
     polygon.intersections = false;
     for(var i = 0; i < polygon.points.length/2; ++i) {
         var lineA = getLineOfPolygon(polygon.points, i);
-        var jEnd = (i > 0) ? polygon.points.length/2-1 : polygon.points.length/2-2;
-        for(var j = i+2; j <= jEnd; ++j) {
+        var jEnd = (i > 0) ? 0 : 1;
+        for(var j = i+2; j < polygon.points.length/2-jEnd; ++j) {
             var lineB = getLineOfPolygon(polygon.points, j);
             if(calculateLineIntersection(lineA, lineB, intersection)) {
-                polygon.points.splice(i*2, (j-i)*2, intersection[0], intersection[1]);
+                polygon.points = splicePolygon(polygon.points, j == polygon.points.length/2-1, intersection, i, j);
                 lineA = getLineOfPolygon(polygon.points, i);
                 polygon.intersections = true;
             }
