@@ -1,7 +1,7 @@
 var accuracyDistance = 1.0, tStep = 0.1, maxCircleVaricance = 0.001;
 
-function parseSVGPath(data, factor, rounding) {
-    var polygons = [], currentPoint = [0,0], accumulator = [], number = "";
+function parseSVGPath(polygons, element, factor, rounding) {
+    var currentPoint = [0,0], accumulator = [], number = "";
     if(!rounding) rounding = 1.0;
 
     function round(value) {
@@ -65,7 +65,7 @@ function parseSVGPath(data, factor, rounding) {
             case "m":
             case "M":
                 assertArgument(accumulator.length % 2 != 1);
-                polygons.push({"commands": []});
+                polygons.push({"commands": [], "color": element.getAttribute("fill")});
                 parseCommand("linear", 2, null, true);
             break;
             case "z":
@@ -141,6 +141,7 @@ function parseSVGPath(data, factor, rounding) {
         }
     }
 
+    var data = element.getAttribute("d");
     for(var i = 0; i < data.length; ++i) {
         switch(data[i]) {
             case ",":
@@ -182,8 +183,6 @@ function parseSVGPath(data, factor, rounding) {
     if(number != "")
         accumulator.push(number);
     seperate();
-
-    return polygons;
 }
 
 function drawLine(line, color) {
@@ -522,7 +521,7 @@ function generateOutline(original, offset) {
     return polygon;
 }
 
-function postProcessPath(polygons, offset) {
+function postProcessPolygons(polygons, offset) {
     for(var i in polygons) {
         //Calculate outline
         polygons[i] = generateOutline(polygons[i], 0);

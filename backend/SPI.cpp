@@ -20,7 +20,7 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
     for(size_t i = lowestPin-slaveCount; i < lowestPin; ++i)
         setPin(i, 1, true);
 
-    for(size_t i = lowestPin; i < lowestPin+4; ++i)
+    for(size_t i = lowestPin; i < lowestPin+3; ++i)
         setPin(i, 2, true);
 
     handle = open("/dev/spidev0.0", O_RDWR);
