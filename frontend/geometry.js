@@ -1,12 +1,18 @@
-var accuracyDistance = 1.0, tStep = 0.1, maxCircleVaricance = 0.001;
+var accuracyDistance = 1.0,
+    tStep = 0.1,
+    maxCircleVaricance = 0.001,
+    rounding = 10000.0,
+    scalingFactor = 1.0; // 1.411099
 
-function parseSVGPath(polygons, element, factor, rounding) {
+function parseSVGPath(polygons, element) {
     var currentPoint = [0,0], accumulator = [], number = "";
     if(!rounding) rounding = 1.0;
 
-    function round(value) {
-        return (rounding == null) ? value : (Math.round(value*rounding)/rounding);
-    }
+    var round = (rounding == null) ? function(value) {
+        return value;
+    } : function(value) {
+        return Math.round(value*rounding)/rounding;
+    };
 
     function getLastCommand() {
         var commands = polygons[polygons.length-1].commands;
@@ -31,7 +37,7 @@ function parseSVGPath(polygons, element, factor, rounding) {
         for(var i = 1; i < accumulator.length; i+=count) {
             var command = {"type":type, "points":[]};
             for(var j = 0; j < count; ++j) {
-                var value = round(parseFloat(accumulator[i+j])*factor+currentPoint[j%2]*isRelative);
+                var value = round(parseFloat(accumulator[i+j])*scalingFactor+currentPoint[j%2]*isRelative);
                 if(interalAdvance)
                     currentPoint[j%2] = value;
                 command.points.push(value);
@@ -47,7 +53,7 @@ function parseSVGPath(polygons, element, factor, rounding) {
         var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
         for(var i = 1; i < accumulator.length; ++i) {
             var command = {"type":"linear", "points":[currentPoint[0], currentPoint[1]]};
-            command.points[coordIndex] = round(parseFloat(accumulator[i])*factor+currentPoint[coordIndex]*isRelative);
+            command.points[coordIndex] = round(parseFloat(accumulator[i])*scalingFactor+currentPoint[coordIndex]*isRelative);
             polygons[polygons.length-1].commands.push(command);
         }
     }
@@ -117,14 +123,14 @@ function parseSVGPath(polygons, element, factor, rounding) {
                     var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
                     var command = {
                         "type":"arc",
-                        "width":round(parseFloat(accumulator[i])*factor),
-                        "height":round(parseFloat(accumulator[i+1])*factor),
-                        "rotation":round(parseFloat(accumulator[i+2])*factor),
+                        "width":round(parseFloat(accumulator[i])*scalingFactor),
+                        "height":round(parseFloat(accumulator[i+1])*scalingFactor),
+                        "rotation":round(parseFloat(accumulator[i+2])*scalingFactor),
                         "flagA":(accumulator[i+3] == "1"),
                         "flagB":(accumulator[i+4] == "1"),
                         "points":[
-                            round((parseFloat(accumulator[i+5])*factor+currentPoint[0]*isRelative)),
-                            round((parseFloat(accumulator[i+6])*factor+currentPoint[1]*isRelative))
+                            round((parseFloat(accumulator[i+5])*scalingFactor+currentPoint[0]*isRelative)),
+                            round((parseFloat(accumulator[i+6])*scalingFactor+currentPoint[1]*isRelative))
                         ]
                     };
                     polygons[polygons.length-1].commands.push(command);
@@ -521,7 +527,21 @@ function generateOutline(original, offset) {
     return polygon;
 }
 
-function postProcessPolygons(polygons, offset) {
+function parseSVGFile(polygons, fileData) {
+    var parser = new DOMParser(), element = parser.parseFromString(fileData, "text/xml");
+    if(!element.getElementsByTagName)
+        throw "No SVG file";
+    element = element.getElementsByTagName("svg");
+    if(!element.length || element.length != 1)
+        throw "No SVG file";
+    element = element[0];
+
+    for(var i = 0; i < element.childNodes.length; ++i) {
+        var child = element.childNodes[i];
+        if(child.nodeName == "path")
+            parseSVGPath(polygons, child);
+    }
+
     for(var i in polygons) {
         //Calculate outline
         polygons[i] = generateOutline(polygons[i], 0);
