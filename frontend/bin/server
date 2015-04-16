@@ -1,0 +1,26 @@
+#!/usr/bin/env iojs
+
+/* jslint node: true, esnext: true */
+
+"use strict";
+
+const path = require('path');
+const koa = require('koa');
+const router = require('koa-router');
+const koaStatic = require('koa-static');
+const bodyParser = require('koa-body-parser');
+
+const app = koa();
+
+const docroot = path.join(__dirname, '..', 'docroot');
+
+app.use(koaStatic(docroot));
+
+app.use(bodyParser());
+app.use(router(app));
+
+const port = 3000;
+
+app.listen(port);
+
+console.log("listen: " + port);
