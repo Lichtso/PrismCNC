@@ -12,6 +12,7 @@
     "koa": "^0.19.1",
     "koa-body-parser": "^1.1.1",
     "koa-router": "^4.3.2",
-    "koa-static": "^1.4.9"
+    "koa-static": "^1.4.9",
+    "koa-ws": "^1.0.1"
   }
 }

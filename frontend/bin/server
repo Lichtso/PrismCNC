@@ -6,18 +6,36 @@
 
 const path = require('path');
 const koa = require('koa');
-const router = require('koa-router');
+//const router = require('koa-router');
+//const bodyParser = require('koa-body-parser');
 const koaStatic = require('koa-static');
-const bodyParser = require('koa-body-parser');
+const koaws = require('koa-ws');
 
 const app = koa();
 
 const docroot = path.join(__dirname, '..', 'docroot');
 
+var options = {
+	serveClientFile: true,
+	clientFilePath: '/koaws.js',
+	heartbeat: true,
+	heartbeatInterval: 5000
+};
+
+app.use(koaws(app, options));
+
+
+app.ws.register('hello', function* () {
+	this.result('world!');
+});
+
+
 app.use(koaStatic(docroot));
 
+/*
 app.use(bodyParser());
 app.use(router(app));
+*/
 
 const port = 3000;
 
