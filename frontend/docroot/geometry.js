@@ -1,17 +1,19 @@
-var accuracyDistance = 1.0,
-    tStep = 0.1,
-    maxCircleVaricance = 0.001,
-    rounding = 10000.0,
-    scalingFactor = 1.0; // 1.411099
+var options = {
+    "accuracyDistance": 1.0,
+    "tStep": 0.1,
+    "maxCircleVaricance": 0.001,
+    "rounding": 10000.0,
+    "scalingFactor": 10.0 // 1.411099
+};
 
 function parseSVGPath(polygons, element) {
     var currentPoint = [0,0], accumulator = [], number = "";
-    if(!rounding) rounding = 1.0;
+    if(!options.rounding) options.rounding = 1.0;
 
-    var round = (rounding == null) ? function(value) {
+    var round = (options.rounding == null) ? function(value) {
         return value;
     } : function(value) {
-        return Math.round(value*rounding)/rounding;
+        return Math.round(value*options.rounding)/options.rounding;
     };
 
     function getLastCommand() {
@@ -37,7 +39,7 @@ function parseSVGPath(polygons, element) {
         for(var i = 1; i < accumulator.length; i+=count) {
             var command = {"type":type, "points":[]};
             for(var j = 0; j < count; ++j) {
-                var value = round(parseFloat(accumulator[i+j])*scalingFactor+currentPoint[j%2]*isRelative);
+                var value = round(parseFloat(accumulator[i+j])*options.scalingFactor+currentPoint[j%2]*isRelative);
                 if(interalAdvance)
                     currentPoint[j%2] = value;
                 command.points.push(value);
@@ -53,7 +55,7 @@ function parseSVGPath(polygons, element) {
         var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
         for(var i = 1; i < accumulator.length; ++i) {
             var command = {"type":"linear", "points":[currentPoint[0], currentPoint[1]]};
-            command.points[coordIndex] = round(parseFloat(accumulator[i])*scalingFactor+currentPoint[coordIndex]*isRelative);
+            command.points[coordIndex] = round(parseFloat(accumulator[i])*options.scalingFactor+currentPoint[coordIndex]*isRelative);
             polygons[polygons.length-1].commands.push(command);
         }
     }
@@ -123,14 +125,14 @@ function parseSVGPath(polygons, element) {
                     var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
                     var command = {
                         "type":"arc",
-                        "width":round(parseFloat(accumulator[i])*scalingFactor),
-                        "height":round(parseFloat(accumulator[i+1])*scalingFactor),
-                        "rotation":round(parseFloat(accumulator[i+2])*scalingFactor),
+                        "width":round(parseFloat(accumulator[i])*options.scalingFactor),
+                        "height":round(parseFloat(accumulator[i+1])*options.scalingFactor),
+                        "rotation":round(parseFloat(accumulator[i+2])*options.scalingFactor),
                         "flagA":(accumulator[i+3] == "1"),
                         "flagB":(accumulator[i+4] == "1"),
                         "points":[
-                            round((parseFloat(accumulator[i+5])*scalingFactor+currentPoint[0]*isRelative)),
-                            round((parseFloat(accumulator[i+6])*scalingFactor+currentPoint[1]*isRelative))
+                            round((parseFloat(accumulator[i+5])*options.scalingFactor+currentPoint[0]*isRelative)),
+                            round((parseFloat(accumulator[i+6])*options.scalingFactor+currentPoint[1]*isRelative))
                         ]
                     };
                     polygons[polygons.length-1].commands.push(command);
@@ -189,14 +191,6 @@ function parseSVGPath(polygons, element) {
     if(number != "")
         accumulator.push(number);
     seperate();
-}
-
-function drawLine(line, color) {
-    ctx.beginPath();
-    ctx.moveTo(line[0], line[1]);
-    ctx.lineTo(line[2], line[3]);
-    ctx.strokeStyle = color;
-    ctx.stroke();
 }
 
 function calculatePointLineDist(p0x, p0y, p1x, p1y, p2x, p2y) {
@@ -267,10 +261,8 @@ function calculateLineIntersection(lineA, lineB, intersection) {
 
 function traversePolygonTree(polygon, callback) {
     callback(polygon);
-    for(var i in polygon.children) {
-        callback(polygon.children[i]);
+    for(var i in polygon.children)
         traversePolygonTree(polygon.children[i], callback);
-    }
 }
 
 function getLineOfPolygon(points, i) {
@@ -333,21 +325,21 @@ function isPolygonCircle(points) {
         variance += diff*diff;
     }
     variance /= polygon.points.length/2-1;
-    return (variance <= maxCircleVaricance) ? avgDistance : -1;
+    return (variance <= options.maxCircleVaricance) ? avgDistance : -1;
 }
 
 function generateCurve(points, curve, offset, callback) {
     var point = [0,0], lastX = curve[0], lastY = curve[1], length = 0.0;
-    for(var t = tStep; t <= 1+tStep*0.5; t += tStep) {
+    for(var t = options.tStep; t <= 1+options.tStep*0.5; t += options.tStep) {
         var u = 1-t;
         callback(point, curve, offset, t, u, t*t, u*u);
         length += calculateLineLength(lastX, lastY, point[0], point[1]);
         lastX = point[0];
         lastY = point[1];
     }
-    tStep = 1.0/Math.round(length/accuracyDistance);
-    if(tStep >= 0.5) tStep = 0.5;
-    for(var t = (offset == 0.0) ? tStep : 0.0; t <= 1+tStep*0.5; t += tStep) {
+    options.tStep = 1.0/Math.round(length/options.accuracyDistance);
+    if(options.tStep >= 0.5) options.tStep = 0.5;
+    for(var t = (offset == 0.0) ? options.tStep : 0.0; t <= 1+options.tStep*0.5; t += options.tStep) {
         var u = 1-t;
         callback(point, curve, offset, t, u, t*t, u*u);
         points.push(point[0]);
@@ -372,7 +364,7 @@ function generateOutline(original, offset) {
                 var dx = command.points[0]-lastPoint[0],
                     dy = command.points[1]-lastPoint[1],
                     factor = Math.sqrt(dx*dx+dy*dy);
-                if(factor < accuracyDistance)
+                if(factor < options.accuracyDistance)
                     continue;
                 factor = offset/factor;
                 if(offset != 0.0) {
@@ -542,10 +534,11 @@ function parseSVGFile(polygons, fileData) {
             parseSVGPath(polygons, child);
     }
 
+    //Generate outline
     for(var i in polygons) {
-        //Calculate outline
         polygons[i] = generateOutline(polygons[i], 0);
         polygons[i].children = [];
+        polygons[i].name = i;
     }
 
     //Check intersections
