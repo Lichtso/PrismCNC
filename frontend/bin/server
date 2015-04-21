@@ -10,26 +10,20 @@ const koa = require('koa');
 //const bodyParser = require('koa-body-parser');
 const koaStatic = require('koa-static');
 const koaws = require('koa-ws');
-
 const app = koa();
 
-const docroot = path.join(__dirname, '..', 'docroot');
-
-var options = {
+app.use(koaws(app, {
 	serveClientFile: true,
 	clientFilePath: '/koaws.js',
 	heartbeat: true,
 	heartbeatInterval: 5000
-};
-
-app.use(koaws(app, options));
-
+}));
 
 app.ws.register('hello', function* () {
 	this.result('world!');
 });
 
-
+const docroot = path.join(__dirname, '..', 'docroot');
 app.use(koaStatic(docroot));
 
 /*
@@ -38,7 +32,5 @@ app.use(router(app));
 */
 
 const port = 3000;
-
 app.listen(port);
-
 console.log("listen: " + port);

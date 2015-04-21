@@ -1,5 +1,5 @@
 var options = {
-    "accuracyDistance": 1.0,
+    "accuracyDistance": 3.0,
     "tStep": 0.1,
     "maxCircleVaricance": 0.001,
     "rounding": 10000.0,
@@ -538,7 +538,6 @@ function parseSVGFile(polygons, fileData) {
     for(var i in polygons) {
         polygons[i] = generateOutline(polygons[i], 0);
         polygons[i].children = [];
-        polygons[i].name = i;
     }
 
     //Check intersections
