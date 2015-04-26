@@ -2,19 +2,32 @@ var options = {
     "accuracyDistance": 3.0,
     "tStep": 0.1,
     "maxCircleVaricance": 0.001,
-    "rounding": 10000.0,
     "scalingFactor": 10.0 // 1.411099
 };
 
+function parseSVGColor(element) {
+    var color = element.getAttribute("fill");
+    if(color[0] == "#") {
+        color = parseInt(color.substr(1), 16);
+        color = {"r":Math.floor(color/65536)/255, "g":Math.floor(color/256%256)/255, "b":Math.floor(color%256)/255};
+        color.v = Math.max(color.r, color.g, color.b);
+        color.s = color.v-Math.min(color.r, color.g, color.b);
+        if(color.s == 0)
+            color.h = 0;
+        else if(color.v == color.r)
+            color.h = Math.PI/3*(0+(color.g-color.b)/color.s);
+        else if(color.v == color.g)
+            color.h = Math.PI/3*(2+(color.b-color.r)/color.s);
+        else
+            color.h = Math.PI/3*(4+(color.r-color.g)/color.s);
+        if(color.hue < 0) color.h += Math.PI*2;
+        if(color.v != 0) color.s /= color.v;
+    }
+    return color;
+}
+
 function parseSVGPath(polygons, element) {
     var currentPoint = [0,0], accumulator = [], number = "";
-    if(!options.rounding) options.rounding = 1.0;
-
-    var round = (options.rounding == null) ? function(value) {
-        return value;
-    } : function(value) {
-        return Math.round(value*options.rounding)/options.rounding;
-    };
 
     function getLastCommand() {
         var commands = polygons[polygons.length-1].commands;
@@ -26,8 +39,8 @@ function parseSVGPath(polygons, element) {
             x = lastCommand.points[lastCommand.points.length-2],
             y = lastCommand.points[lastCommand.points.length-1];
         if(lastCommand.type == command.type) {
-            x = round(2*x-lastCommand.points[lastCommand.points.length-4]);
-            y = round(2*y-lastCommand.points[lastCommand.points.length-3]);
+            x = 2*x-lastCommand.points[lastCommand.points.length-4];
+            y = 2*y-lastCommand.points[lastCommand.points.length-3];
         }
         command.points.splice(0, 0, x);
         command.points.splice(1, 0, y);
@@ -39,7 +52,7 @@ function parseSVGPath(polygons, element) {
         for(var i = 1; i < accumulator.length; i+=count) {
             var command = {"type":type, "points":[]};
             for(var j = 0; j < count; ++j) {
-                var value = round(parseFloat(accumulator[i+j])*options.scalingFactor+currentPoint[j%2]*isRelative);
+                var value = parseFloat(accumulator[i+j])*options.scalingFactor+currentPoint[j%2]*isRelative;
                 if(interalAdvance)
                     currentPoint[j%2] = value;
                 command.points.push(value);
@@ -55,7 +68,7 @@ function parseSVGPath(polygons, element) {
         var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
         for(var i = 1; i < accumulator.length; ++i) {
             var command = {"type":"linear", "points":[currentPoint[0], currentPoint[1]]};
-            command.points[coordIndex] = round(parseFloat(accumulator[i])*options.scalingFactor+currentPoint[coordIndex]*isRelative);
+            command.points[coordIndex] = parseFloat(accumulator[i])*options.scalingFactor+currentPoint[coordIndex]*isRelative;
             polygons[polygons.length-1].commands.push(command);
         }
     }
@@ -73,7 +86,7 @@ function parseSVGPath(polygons, element) {
             case "m":
             case "M":
                 assertArgument(accumulator.length % 2 != 1);
-                polygons.push({"commands": [], "color": element.getAttribute("fill")});
+                polygons.push({"commands":[], "color":parseSVGColor(element)});
                 parseCommand("linear", 2, null, true);
             break;
             case "z":
@@ -125,14 +138,14 @@ function parseSVGPath(polygons, element) {
                     var isRelative = (accumulator[0][0] == accumulator[0][0].toLowerCase()) ? 1 : 0;
                     var command = {
                         "type":"arc",
-                        "width":round(parseFloat(accumulator[i])*options.scalingFactor),
-                        "height":round(parseFloat(accumulator[i+1])*options.scalingFactor),
-                        "rotation":round(parseFloat(accumulator[i+2])*options.scalingFactor),
+                        "width":parseFloat(accumulator[i])*options.scalingFactor,
+                        "height":parseFloat(accumulator[i+1])*options.scalingFactor,
+                        "rotation":parseFloat(accumulator[i+2])*options.scalingFactor,
                         "flagA":(accumulator[i+3] == "1"),
                         "flagB":(accumulator[i+4] == "1"),
                         "points":[
-                            round((parseFloat(accumulator[i+5])*options.scalingFactor+currentPoint[0]*isRelative)),
-                            round((parseFloat(accumulator[i+6])*options.scalingFactor+currentPoint[1]*isRelative))
+                            (parseFloat(accumulator[i+5])*options.scalingFactor+currentPoint[0]*isRelative),
+                            (parseFloat(accumulator[i+6])*options.scalingFactor+currentPoint[1]*isRelative)
                         ]
                     };
                     polygons[polygons.length-1].commands.push(command);
@@ -259,10 +272,12 @@ function calculateLineIntersection(lineA, lineB, intersection) {
     return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
 }
 
-function traversePolygonTree(polygon, callback) {
-    callback(polygon);
+function traversePolygonTree(polygon, callback, depth) {
+    if(!depth) depth = 0;
     for(var i in polygon.children)
-        traversePolygonTree(polygon.children[i], callback);
+        if(traversePolygonTree(polygon.children[i], callback, depth+1))
+            return true;
+    return callback(polygon, depth);
 }
 
 function getLineOfPolygon(points, i) {
@@ -348,9 +363,9 @@ function generateCurve(points, curve, offset, callback) {
 }
 
 function generateOutline(original, offset) {
-    var polygon = {"points":[], "commands":original.commands}, intersection = [0,0];
+    var polygon = {"points":[], "commands":original.commands, "color":original.color}, intersection = [0,0];
     // ^ TODO ^
-    //if(original.signedArea > 0.0) offset *= -1;
+    if(original.signedArea > 0.0) offset *= -1;
 
     for(var j in original.commands) {
         var command = original.commands[j], pointIndex = polygon.points.length, lastPoint;
@@ -530,14 +545,30 @@ function parseSVGFile(polygons, fileData) {
 
     for(var i = 0; i < element.childNodes.length; ++i) {
         var child = element.childNodes[i];
-        if(child.nodeName == "path")
-            parseSVGPath(polygons, child);
+        switch(child.nodeName) {
+            case "path":
+                parseSVGPath(polygons, child);
+            break;
+            case "rect":
+                var x = parseFloat(child.getAttribute("x"))*options.scalingFactor,
+                    y = parseFloat(child.getAttribute("y"))*options.scalingFactor,
+                    w = parseFloat(child.getAttribute("width"))*options.scalingFactor,
+                    h = parseFloat(child.getAttribute("height"))*options.scalingFactor;
+                polygons.push({"commands":[
+                    {"type":"linear", "points":[x, y]},
+                    {"type":"linear", "points":[x+w, y]},
+                    {"type":"linear", "points":[x+w, y+h]},
+                    {"type":"linear", "points":[x, y+h]}
+                ], "color":parseSVGColor(child)});
+            break;
+        }
     }
 
     //Generate outline
     for(var i in polygons) {
         polygons[i] = generateOutline(polygons[i], 0);
         polygons[i].children = [];
+        polygons[i].name = i;
     }
 
     //Check intersections
@@ -553,16 +584,27 @@ function parseSVGFile(polygons, fileData) {
     }
 
     //Build bollean geometry tree
-    for(var i in polygons)
-        traversePolygonTree(polygons[i], function(outerPolygon) {
-            for(var j = 0; j < polygons.length; ++j) {
-                var innerPolygon = polygons[j];
+    for(var i = 0; i < polygons.length; ++i) {
+        var innerPolygon = polygons[i];
+        for(var o = 0; o < polygons.length; ++o)
+            if(traversePolygonTree(polygons[o], function(outerPolygon) {
                 if(innerPolygon != outerPolygon && isPointInsidePolygon(outerPolygon, innerPolygon.points[0], innerPolygon.points[1])) {
+                    for(var i = 0; i < outerPolygon.children.length; ++i)
+                        if(isPointInsidePolygon(innerPolygon, outerPolygon.children[i].points[0], outerPolygon.children[i].points[1])) {
+                            innerPolygon.children.push(outerPolygon.children[i]);
+                            outerPolygon.children.splice(i--, 1);
+                        }
                     outerPolygon.children.push(innerPolygon);
-                    polygons.splice(j--, 1);
-                }
+                    return true;
+                }else
+                    return false;
+            })) {
+                polygons.splice(i--, 1);
+                break;
             }
-        });
+    }
+
+
 
     console.log(JSON.stringify(polygons, null, 4));
 }

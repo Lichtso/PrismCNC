@@ -39,8 +39,8 @@ function render(offset, radius) {
 
     for(var i in polygons) {
         var polygon = polygons[i];
-        traversePolygonTree(polygon, function(polygon) {
-            polygon = generateOutline(polygon, offset);
+        traversePolygonTree(polygon, function(polygon, depth) {
+            polygon = generateOutline(polygon, (depth%2) ? -offset : offset);
             var data = "";
             /*for(var j in polygon.commands) {
                 var command = polygon.commands[j];
@@ -69,10 +69,10 @@ function render(offset, radius) {
             for(var j = 0; j < polygon.points.length; j += 2)
                 data += "M"+polygon.points[j]+","+(polygon.points[j+1]+pr)+"a"+pr+","+pr+",0,0,0,0,"+pr*2+"a"+pr+","+pr+",0,0,0,0,-"+pr*2;*/
 
-            var element = document.createElementNS(canvas.getAttribute("xmlns"), "path");
+            var element = document.createElementNS(canvas.getAttribute("xmlns"), "path"), color = polygon.color;
             canvas.appendChild(element);
             element.setAttribute("fill", "none");
-            element.setAttribute("stroke", "black");
+            element.setAttribute("stroke", "rgb("+Math.round(color.r*255)+","+Math.round(color.g*255)+","+Math.round(color.b*255)+")");
             element.setAttribute("stroke-linejoin", "round");
             element.setAttribute("stroke-width", radius*2);
             element.setAttribute("d", data);
