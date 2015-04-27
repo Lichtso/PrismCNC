@@ -3,7 +3,7 @@ var options = {
     "tStep": 0.1,
     "maxCircleVaricance": 0.001,
     "scalingFactor": 10.0 // 1.411099
-};
+}, workpiece, dangerZone, slug;
 
 function parseSVGColor(element) {
     var color = element.getAttribute("fill");
@@ -22,6 +22,7 @@ function parseSVGColor(element) {
             color.h = Math.PI/3*(4+(color.r-color.g)/color.s);
         if(color.hue < 0) color.h += Math.PI*2;
         if(color.v != 0) color.s /= color.v;
+        color.string = "rgb("+Math.round(color.r*255)+","+Math.round(color.g*255)+","+Math.round(color.b*255)+")";
     }
     return color;
 }
@@ -363,8 +364,7 @@ function generateCurve(points, curve, offset, callback) {
 }
 
 function generateOutline(original, offset) {
-    var polygon = {"points":[], "commands":original.commands, "color":original.color}, intersection = [0,0];
-    // ^ TODO ^
+    var polygon = {"points":[]}, intersection = [0,0];
     if(original.signedArea > 0.0) offset *= -1;
 
     for(var j in original.commands) {
@@ -534,7 +534,7 @@ function generateOutline(original, offset) {
     return polygon;
 }
 
-function parseSVGFile(polygons, fileData) {
+function parseSVGFile(fileData) {
     var parser = new DOMParser(), element = parser.parseFromString(fileData, "text/xml");
     if(!element.getElementsByTagName)
         throw "No SVG file";
@@ -543,6 +543,8 @@ function parseSVGFile(polygons, fileData) {
         throw "No SVG file";
     element = element[0];
 
+    workpiece = [], dangerZone = [], slug = [];
+    var polygons = [];
     for(var i = 0; i < element.childNodes.length; ++i) {
         var child = element.childNodes[i];
         switch(child.nodeName) {
@@ -566,16 +568,24 @@ function parseSVGFile(polygons, fileData) {
 
     //Generate outline
     for(var i in polygons) {
-        polygons[i] = generateOutline(polygons[i], 0);
-        polygons[i].children = [];
-        polygons[i].name = i;
+        var original = polygons[i],
+            polygon = generateOutline(original, 0);
+        polygon.commands = original.commands;
+        if(polygons[i].color.s == 0) {
+            polygon.children = [];
+            polygon.offsetPaths = [];
+            workpiece.push(polygon);
+        }else if(polygons[i].color.h < Math.PI*1/6 && polygons[i].color.h > Math.PI*5/6)
+            dangerZone.push(polygon);
+        else if(polygons[i].color.h > Math.PI*3/6 && polygons[i].color.h < Math.PI*5/6)
+            slug.push(polygon);
     }
 
     //Check intersections
-    for(var j = 0; j < polygons.length; ++j) {
-        var polygonA = polygons[j];
-        for(var j = 0; j < polygons.length; ++j) {
-            var polygonB = polygons[j];
+    for(var j = 0; j < workpiece.length; ++j) {
+        var polygonA = workpiece[j];
+        for(var j = 0; j < workpiece.length; ++j) {
+            var polygonB = workpiece[j];
             if(polygonA == polygonB) continue;
             intersection = calculatePolygonsIntersection(polygonA, polygonB);
             if(intersection.length > 0)
@@ -584,10 +594,10 @@ function parseSVGFile(polygons, fileData) {
     }
 
     //Build bollean geometry tree
-    for(var i = 0; i < polygons.length; ++i) {
-        var innerPolygon = polygons[i];
-        for(var o = 0; o < polygons.length; ++o)
-            if(traversePolygonTree(polygons[o], function(outerPolygon) {
+    for(var i = 0; i < workpiece.length; ++i) {
+        var innerPolygon = workpiece[i];
+        for(var o = 0; o < workpiece.length; ++o)
+            if(traversePolygonTree(workpiece[o], function(outerPolygon) {
                 if(innerPolygon != outerPolygon && isPointInsidePolygon(outerPolygon, innerPolygon.points[0], innerPolygon.points[1])) {
                     for(var i = 0; i < outerPolygon.children.length; ++i)
                         if(isPointInsidePolygon(innerPolygon, outerPolygon.children[i].points[0], outerPolygon.children[i].points[1])) {
@@ -599,12 +609,10 @@ function parseSVGFile(polygons, fileData) {
                 }else
                     return false;
             })) {
-                polygons.splice(i--, 1);
+                workpiece.splice(i--, 1);
                 break;
             }
     }
 
-
-
-    console.log(JSON.stringify(polygons, null, 4));
+    //console.log(JSON.stringify(workpiece, null, 4));
 }

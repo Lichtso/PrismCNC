@@ -2,7 +2,7 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg version="1.1" id="Ebene_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 width="1920px" height="1080px" viewBox="0 0 1920 1080" enable-background="new 0 0 1920 1080" xml:space="preserve">
-<rect x="9" y="9" fill="#FF0000" width="44" height="12"/>
+<rect x="9" y="9" fill="#00FF00" width="44" height="12"/>
 <path fill="#B3B3B3" stroke="#1D1D1B" stroke-width="0.2" stroke-miterlimit="10" d="M50.328,10H13c-1.65,0-3,1.35-3,3v4
 	c0,1.65,1.35,3,3,3h20c0.414,0,0.789-0.168,1.061-0.439l3.879-5.121C38.211,14.168,38.586,14,39,14h3.209
 	c0.441,0,0.816,0.286,0.948,0.682l0,0C43.676,16.594,45.424,18,47.5,18c2.485,0,4.5-2.015,4.5-4.5
