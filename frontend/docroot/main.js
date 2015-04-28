@@ -1,79 +1,95 @@
-var canvas, ctx;
-
 function init() {
-    var canvasWidth = canvasHeight = 1024,
-        scaleFactor = (window.devicePixelRatio) ? window.devicePixelRatio : 1;
-    canvas = document.getElementById("canvas");
+    var svgCanvas = document.getElementById("svgCanvas"),
+        svgDropZone = document.getElementById("svgDropZone"),
+        svgLoadingIndicator = document.getElementById("svgLoadingIndicator");
 
-    document.addEventListener("dragover", function(evt) {
-        var files = evt.dataTransfer.files;
+    document.body.addEventListener("dragover", function(evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+    });
+
+    document.body.addEventListener("drop", function(evt) {
+        evt.stopPropagation();
+        evt.preventDefault();
+    });
+
+    svgDropZone.addEventListener("dragover", function(evt) {
         evt.stopPropagation();
         evt.preventDefault();
         evt.dataTransfer.dropEffect = "copy";
-    }, false);
+        svgDropZone.childNodes[1].setAttribute("class", "file outline huge icon");
+    });
 
-    document.addEventListener("drop", function(evt) {
+    svgDropZone.addEventListener("dragleave", function(evt) {
+        svgDropZone.childNodes[1].setAttribute("class", "file huge icon");
+    });
+
+    svgDropZone.addEventListener("drop", function(evt) {
         evt.stopPropagation();
         evt.preventDefault();
         var files = evt.dataTransfer.files;
         if(files.length != 1 || files[0].name.substr(files[0].name.length-4) != ".svg")
             throw "No SVG file";
         var reader = new FileReader();
+        svgCanvas.style.display = "initial";
+        svgDropZone.style.display = "none";
+        svgLoadingIndicator.setAttribute("class", "ui dimmer active");
         reader.onload = function(result) {
             parseSVGFile(result.target.result);
             render(0, 2);
+            svgLoadingIndicator.setAttribute("class", "ui dimmer");
         };
         reader.readAsText(files[0]);
-    }, false);
+    });
+
+    svgCanvas.parentNode.addEventListener("click", function(evt) {
+        svgCanvas.style.display = "none";
+        svgDropZone.style.display = "block";
+        svgDropZone.childNodes[1].setAttribute("class", "file huge icon");
+        svgLoadingIndicator.setAttribute("class", "ui dimmer");
+    });
+
+    $('.ui.dropdown').dropdown();
+    $('.left.sidebar .item').tab();
+    $('.right.attached.fixed.button')[0].onclick = function() {
+        $('.left.sidebar').sidebar('toggle');
+    };
 }
 
 function render(offset, radius) {
-    while(canvas.firstChild)
-        canvas.removeChild(canvas.firstChild);
+    var svgCanvas = document.getElementById("svgCanvas");
+    while(svgCanvas.firstChild)
+        svgCanvas.removeChild(svgCanvas.firstChild);
 
     for(var i in workpiece)
-        traversePolygonTree(workpiece[i], function(polygon, depth) {
-            polygon = generateOutline(polygon, (depth%2) ? -offset : offset);
-            var data = "";
-            /*for(var j in polygon.commands) {
-                var command = polygon.commands[j];
-                switch(command.type) {
-                    case "linear":
-                    if(j == 0)
-                        data += "M"+command.points[0]+","+command.points[1];
-                    else
-                        data += "L"+command.points[0]+","+command.points[1];
-                    break;
-                    case "quadratic":
-                    data += "Q"+command.points[0]+","+command.points[1]+","+command.points[2]+","+command.points[3];
-                    break;
-                    case "cubic":
-                    data += "C"+command.points[0]+","+command.points[1]+","+command.points[2]+","+command.points[3]+","+command.points[4]+","+command.points[5];
-                    break;
-                }
-            }*/
+        traversePolygonTree(workpiece[i], function(original, depth) {
+            var maxR = (depth == 0) ? offset : 0;
+            for(var r = 0; r <= maxR; r += 10) {
+                var polygon = generateOutline(original, (depth%2) ? -r : r);
 
-            data += "M"+polygon.points[0]+","+polygon.points[1];
-            for(var j = 2; j < polygon.points.length; j += 2)
-                data += "L"+polygon.points[j]+","+polygon.points[j+1];
-            data += "z";
+                var data = "";
+                data += "M"+polygon.points[0]+","+polygon.points[1];
+                for(var j = 2; j < polygon.points.length; j += 2)
+                    data += "L"+polygon.points[j]+","+polygon.points[j+1];
+                data += "z";
 
-            /*var pr = 1;
-            for(var j = 0; j < polygon.points.length; j += 2)
-                data += "M"+polygon.points[j]+","+(polygon.points[j+1]+pr)+"a"+pr+","+pr+",0,0,0,0,"+pr*2+"a"+pr+","+pr+",0,0,0,0,-"+pr*2;*/
+                /*var pr = 1;
+                for(var j = 0; j < polygon.points.length; j += 2)
+                    data += "M"+polygon.points[j]+","+(polygon.points[j+1]+pr)+"a"+pr+","+pr+",0,0,0,0,"+pr*2+"a"+pr+","+pr+",0,0,0,0,-"+pr*2;*/
 
-            var element = document.createElementNS(canvas.getAttribute("xmlns"), "path");
-            canvas.appendChild(element);
-            element.setAttribute("fill", "none");
-            element.setAttribute("stroke", (polygon.intersections) ? "red" : "black");
-            element.setAttribute("stroke-linejoin", "round");
-            element.setAttribute("stroke-width", 1);
-            element.setAttribute("d", data);
-            element.onmouseover = function() {
-                element.setAttribute("stroke", "cyan");
-            };
-            element.onmouseout = function() {
-                element.setAttribute("stroke", (polygon.intersections) ? "red" : "black");
-            };
+                var element = document.createElementNS(svgCanvas.getAttribute("xmlns"), "path");
+                svgCanvas.appendChild(element);
+                element.setAttribute("d", data);
+                element.setAttribute("fill", "none");
+                element.setAttribute("stroke", (r == 0) ? "black" : "green");
+                element.setAttribute("stroke-linejoin", "round");
+                element.setAttribute("stroke-width", 2);
+                /*element.onmouseover = function() {
+                    element.setAttribute("stroke", "cyan");
+                };
+                element.onmouseout = function() {
+                    element.setAttribute("stroke", (polygon.intersections) ? "red" : "black");
+                };*/
+            }
         });
 }

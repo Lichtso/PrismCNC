@@ -25,12 +25,203 @@
             if (err) console.error('Something went wrong', err);
             console.log(result) // should log 'world!'
         });
-    </script>-->
+        </script>-->
     </head>
     <body onload="init();">
-        <div class="container">
-            <input type="range" style="width:500px" min="1.0" max="40.0" value="0.0" oninput="render(this.value, this.value);" /><br />
-            <svg id="canvas" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"></svg>
+        <div class="ui left vertical inverted labeled icon sidebar menu">
+            <a class="item" data-tab="status-view">
+                <i class="dashboard icon"></i>
+                Status
+            </a>
+            <a class="item" data-tab="planning-view">
+                <i class="write icon"></i>
+                Planning
+            </a>
+            <a class="item" data-tab="tools-view">
+                <i class="configure icon"></i>
+                Tools
+            </a>
+            <a class="item" data-tab="manual-control-view">
+                <i class="game icon"></i>
+                Manual Control
+            </a>
+            <a class="item" data-tab="preferences-view">
+                <i class="options icon"></i>
+                Preferences
+            </a>
+            <a class="item" data-tab="options-view">
+                <i class="setting icon"></i>
+                Options
+            </a>
+            <a class="item" data-tab="settings-view">
+                <i class="settings icon"></i>
+                Settings
+            </a>
+            <a class="item">
+                <div class="ui red button">
+                    <i class="fire icon"></i>
+                    ESD
+                </div>
+            </a>
+        </div>
+        <div class="ui black big right attached fixed button">
+            <i class="content icon"></i>
+            <span class="text">Menu</span>
+        </div>
+        <div class="pusher">
+            <div class="ui tab" data-tab="status-view">
+                <h1>Status</h1>
+                <div class="ui divider"></div>
+                <div class="ui error message">
+                    <div class="header">Hardware not Found</div>
+                    <p>The CNC machine is currently not connected.</p>
+                </div>
+            </div>
+            <div class="ui tab" data-tab="planning-view">
+                <h1>Planning</h1>
+                <div class="ui divider"></div>
+                <input type="range" style="width:500px" min="0.0" max="70.0" value="0.0" oninput="render(this.value, this.value);" /><br />
+                <div class="center aligned ui segment">
+                    <svg id="svgCanvas" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg"></svg>
+                    <div id="svgDropZone">
+                        <i class="file huge icon"></i><br/>
+                        <br/>
+                        Drop the SVG File!
+                    </div>
+                    <div id="svgLoadingIndicator" class="ui dimmer">
+                        <div class="ui loader"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui tab" data-tab="tools-view">
+                <h1>Tools</h1>
+                <div class="ui divider"></div>
+                <form class="ui form">
+                    <div class="ui four column grid">
+                        <div class="column field">
+                            <label>Name</label>
+                            <div class="ui search dropdown selection">
+                                <i class="dropdown icon"></i>
+                                <input class="search" name="tool-name" tabindex="0">
+                                <div class="default text"></div>
+                                <div class="menu">
+                                    <div class="item" data-value="toolA">
+                                        Tool A
+                                    </div>
+                                    <div class="item" data-value="toolB">
+                                        Tool B
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="column field">
+                            <label>Direction</label>
+                            <div class="ui dropdown selection">
+                                <i class="dropdown icon"></i>
+                                <input type="hidden" name="tool-direction" value="CW">
+                                <div class="default text"></div>
+                                <div class="menu">
+                                    <div class="item" data-value="CW">
+                                        Clock Wise
+                                    </div>
+                                    <div class="item" data-value="CCW">
+                                        Counter Clock Wise
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ui four column grid">
+                        <div class="column field">
+                            <label>Inner Height</label>
+                            <input type="text" name="tool-inner-height" placeholder="0">
+                        </div>
+                        <div class="column field">
+                            <label>Outer Height</label>
+                            <input type="text" name="tool-outer-height" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="ui four column grid">
+                        <div class="column field">
+                            <label>Inner Radius</label>
+                            <input type="text" name="tool-inner-radius" placeholder="0">
+                        </div>
+                        <div class="column field">
+                            <label>Outer Radius</label>
+                            <input type="text" name="tool-outer-radius" placeholder="0">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="ui tab" data-tab="manual-control-view">
+                <h1>Manual Control</h1>
+                <div class="ui divider"></div>
+                <table class="ui celled compact table" width="50%">
+                    <thead>
+                        <tr>
+                            <th>Axis</th>
+                            <th>Position</th>
+                            <th>Controls</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>X</td>
+                            <td>0</td>
+                            <td>
+                                <div class="ui icon buttons">
+                                    <div class="ui button">
+                                        <i class="circle arrow left icon"></i>
+                                    </div>
+                                    <div class="ui button">
+                                        <i class="circle arrow right icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Y</td>
+                            <td>0</td>
+                            <td>
+                                <div class="ui icon buttons">
+                                    <div class="ui button">
+                                        <i class="circle arrow down icon"></i>
+                                    </div>
+                                    <div class="ui button">
+                                        <i class="circle arrow up icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Z</td>
+                            <td>0</td>
+                            <td>
+                                <div class="ui icon buttons">
+                                    <div class="ui button">
+                                        <i class="circle thin icon"></i>
+                                    </div>
+                                    <div class="ui button">
+                                        <i class="circle icon"></i>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="ui tab" data-tab="preferences-view">
+                <h1>Preferences</h1>
+                <div class="ui divider"></div>
+            </div>
+            <div class="ui tab" data-tab="options-view">
+                <h1>Options</h1>
+                <div class="ui divider"></div>
+            </div>
+            <div class="ui tab" data-tab="settings-view">
+                <h1>Settings</h1>
+                <div class="ui divider"></div>
+            </div>
         </div>
     </body>
 </html>
