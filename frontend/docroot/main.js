@@ -42,18 +42,24 @@ function init() {
         reader.readAsText(files[0]);
     });
 
-    svgCanvas.parentNode.addEventListener("click", function(evt) {
+    /*svgCanvas.parentNode.addEventListener("click", function(evt) {
         svgCanvas.style.display = "none";
         svgDropZone.style.display = "block";
         svgDropZone.childNodes[1].setAttribute("class", "file huge icon");
         svgLoadingIndicator.setAttribute("class", "ui dimmer");
-    });
+    });*/
 
-    $('.ui.dropdown').dropdown();
-    $('.left.sidebar .item').tab();
-    $('.right.attached.fixed.button')[0].onclick = function() {
-        $('.left.sidebar').sidebar('toggle');
+    $(".ui.dropdown").dropdown();
+    $(".left.sidebar .item").tab();
+    $(".right.attached.fixed.button")[0].onclick = function() {
+        $(".left.sidebar").sidebar("toggle");
     };
+
+    var socket = io.connect("http://"+document.location.host);
+    socket.on("news", function (data) {
+        console.log(data);
+        socket.emit("my other event", {"my": "data"});
+    });
 }
 
 function render(offset, radius) {
@@ -64,6 +70,7 @@ function render(offset, radius) {
     for(var i in workpiece)
         traversePolygonTree(workpiece[i], function(original, depth) {
             var maxR = (depth == 0) ? offset : 0;
+            var increment = (depth == 0) ? Math.max(2, offset) : 10;
             for(var r = 0; r <= maxR; r += 10) {
                 var polygon = generateOutline(original, (depth%2) ? -r : r);
 
@@ -83,7 +90,7 @@ function render(offset, radius) {
                 element.setAttribute("fill", "none");
                 element.setAttribute("stroke", (r == 0) ? "black" : "green");
                 element.setAttribute("stroke-linejoin", "round");
-                element.setAttribute("stroke-width", 2);
+                element.setAttribute("stroke-width", (r == 0) ? 2 : 2);
                 /*element.onmouseover = function() {
                     element.setAttribute("stroke", "cyan");
                 };
@@ -92,4 +99,57 @@ function render(offset, radius) {
                 };*/
             }
         });
+}
+
+var tools = [], toolAttributes = ["name", "direction", "innerRadius", "outerRadius", "innerHeight", "outerHeight"];
+
+function updateToolNames() {
+    var toolNames = document.getElementById("toolNames"),
+        active = toolForm.elements["name"].value;
+    while(toolNames.firstChild)
+        toolNames.removeChild(toolNames.firstChild);
+    console.log(tools);
+    for(var i in tools) {
+        var element = document.createElement("div");
+        toolNames.appendChild(element);
+        element.setAttribute("class", (tools[i] == active) ? "active item" : "item");
+        element.setAttribute("data-value", tools[i].name);
+        element.innerText = tools[i].name;
+    }
+}
+
+function setTool() {
+    var toolForm = document.getElementById("toolForm");
+    for(var i in tools)
+        if(tools[i].name == toolForm.elements["name"].value) {
+            for(var j in toolAttributes)
+                toolForm.elements[toolAttributes[j]].value = tools[i][toolAttributes[j]];
+            return;
+        }
+}
+
+function removeTool() {
+    var toolForm = document.getElementById("toolForm");
+    for(var i in tools)
+        if(tools[i].name == toolForm.elements["name"].value) {
+            tools.splice(i, 1);
+            updateToolNames();
+            break;
+        }
+    for(var j in toolAttributes)
+        toolForm.elements[toolAttributes[j]].value = "";
+}
+
+function saveTool() {
+    var toolForm = document.getElementById("toolForm"), tool = {};
+    for(var j in toolAttributes)
+        tool[toolAttributes[j]] = toolForm.elements[toolAttributes[j]].value;
+    if(tool.name == "") return;
+    for(var i in tools)
+        if(tools[i].name == toolForm.elements["name"].value) {
+            tools[i] = tool;
+            return;
+        }
+    tools.push(tool);
+    updateToolNames();
 }

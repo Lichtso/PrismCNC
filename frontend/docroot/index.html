@@ -12,48 +12,37 @@
 
         <script src="bower_components/jquery/dist/jquery.min.js"></script>
         <script src="bower_components/semantic-ui/dist/semantic.js"></script>
+        <script src="socket.io/socket.io.js"></script>
         <script src="geometry.js"></script>
         <script src="main.js"></script>
-        <!--<script src="/koaws.js"></script>
-        <script type="text/javascript">
-        koaws.register('session', function (err, payload) {
-            if (err) console.error('Something went wrong', err);
-            console.log(payload) // should include our session
-        });
-        koaws.connect();
-        koaws.method('hello', function (err, result) {
-            if (err) console.error('Something went wrong', err);
-            console.log(result) // should log 'world!'
-        });
-        </script>-->
     </head>
     <body onload="init();">
         <div class="ui left vertical inverted labeled icon sidebar menu">
-            <a class="item" data-tab="status-view">
+            <a class="item" data-tab="statusView">
                 <i class="dashboard icon"></i>
                 Status
             </a>
-            <a class="item" data-tab="planning-view">
+            <a class="item" data-tab="planningView">
                 <i class="write icon"></i>
                 Planning
             </a>
-            <a class="item" data-tab="tools-view">
+            <a class="item" data-tab="toolsView">
                 <i class="configure icon"></i>
                 Tools
             </a>
-            <a class="item" data-tab="manual-control-view">
+            <a class="item" data-tab="manualControlView">
                 <i class="game icon"></i>
                 Manual Control
             </a>
-            <a class="item" data-tab="preferences-view">
+            <a class="item" data-tab="preferencesView">
                 <i class="options icon"></i>
                 Preferences
             </a>
-            <a class="item" data-tab="options-view">
+            <a class="item" data-tab="optionsView">
                 <i class="setting icon"></i>
                 Options
             </a>
-            <a class="item" data-tab="settings-view">
+            <a class="item" data-tab="settingsView">
                 <i class="settings icon"></i>
                 Settings
             </a>
@@ -69,7 +58,7 @@
             <span class="text">Menu</span>
         </div>
         <div class="pusher">
-            <div class="ui tab" data-tab="status-view">
+            <div class="ui tab" data-tab="statusView">
                 <h1>Status</h1>
                 <div class="ui divider"></div>
                 <div class="ui error message">
@@ -77,7 +66,7 @@
                     <p>The CNC machine is currently not connected.</p>
                 </div>
             </div>
-            <div class="ui tab" data-tab="planning-view">
+            <div class="ui tab" data-tab="planningView">
                 <h1>Planning</h1>
                 <div class="ui divider"></div>
                 <input type="range" style="width:500px" min="0.0" max="70.0" value="0.0" oninput="render(this.value, this.value);" /><br />
@@ -93,32 +82,25 @@
                     </div>
                 </div>
             </div>
-            <div class="ui tab" data-tab="tools-view">
+            <div class="ui tab" data-tab="toolsView">
                 <h1>Tools</h1>
                 <div class="ui divider"></div>
-                <form class="ui form">
+                <form class="ui form" id="toolForm" onfocusout="setTool();">
                     <div class="ui four column grid">
                         <div class="column field">
                             <label>Name</label>
                             <div class="ui search dropdown selection">
-                                <i class="dropdown icon"></i>
-                                <input class="search" name="tool-name" tabindex="0">
+                                <i class="search icon"></i>
+                                <input class="search" name="name" tabindex="0">
                                 <div class="default text"></div>
-                                <div class="menu">
-                                    <div class="item" data-value="toolA">
-                                        Tool A
-                                    </div>
-                                    <div class="item" data-value="toolB">
-                                        Tool B
-                                    </div>
-                                </div>
+                                <div class="menu" id="toolNames"></div>
                             </div>
                         </div>
                         <div class="column field">
                             <label>Direction</label>
                             <div class="ui dropdown selection">
                                 <i class="dropdown icon"></i>
-                                <input type="hidden" name="tool-direction" value="CW">
+                                <input type="hidden" name="direction" value="CW">
                                 <div class="default text"></div>
                                 <div class="menu">
                                     <div class="item" data-value="CW">
@@ -134,26 +116,37 @@
                     <div class="ui four column grid">
                         <div class="column field">
                             <label>Inner Height</label>
-                            <input type="text" name="tool-inner-height" placeholder="0">
+                            <input type="text" name="innerHeight" placeholder="0">
                         </div>
                         <div class="column field">
                             <label>Outer Height</label>
-                            <input type="text" name="tool-outer-height" placeholder="0">
+                            <input type="text" name="outerHeight" placeholder="0">
                         </div>
                     </div>
                     <div class="ui four column grid">
                         <div class="column field">
                             <label>Inner Radius</label>
-                            <input type="text" name="tool-inner-radius" placeholder="0">
+                            <input type="text" name="innerRadius" placeholder="0">
                         </div>
                         <div class="column field">
                             <label>Outer Radius</label>
-                            <input type="text" name="tool-outer-radius" placeholder="0">
+                            <input type="text" name="outerRadius" placeholder="0">
+                        </div>
+                    </div>
+                    <br/>
+                    <div class="ui icon buttons">
+                        <div class="ui blue labled button" onclick="saveTool();">
+                            <i class="check icon"></i>
+                            Save
+                        </div>
+                        <div class="ui red labled button" onclick="removeTool();">
+                            <i class="delete icon"></i>
+                            Remove
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="ui tab" data-tab="manual-control-view">
+            <div class="ui tab" data-tab="manualControlView">
                 <h1>Manual Control</h1>
                 <div class="ui divider"></div>
                 <table class="ui celled compact table" width="50%">
@@ -210,15 +203,15 @@
                     </tbody>
                 </table>
             </div>
-            <div class="ui tab" data-tab="preferences-view">
+            <div class="ui tab" data-tab="preferencesView">
                 <h1>Preferences</h1>
                 <div class="ui divider"></div>
             </div>
-            <div class="ui tab" data-tab="options-view">
+            <div class="ui tab" data-tab="optionsView">
                 <h1>Options</h1>
                 <div class="ui divider"></div>
             </div>
-            <div class="ui tab" data-tab="settings-view">
+            <div class="ui tab" data-tab="settingsView">
                 <h1>Settings</h1>
                 <div class="ui divider"></div>
             </div>

@@ -1,36 +1,18 @@
 #!/usr/bin/env iojs
-
 /* jslint node: true, esnext: true */
-
 "use strict";
 
-const path = require('path');
-const koa = require('koa');
-//const router = require('koa-router');
-//const bodyParser = require('koa-body-parser');
-const koaStatic = require('koa-static');
-const koaws = require('koa-ws');
-const app = koa();
+var express = require("express"),
+	app = express(),
+	server = require("http").Server(app),
+	io = require("socket.io")(server);
 
-app.use(koaws(app, {
-	serveClientFile: true,
-	clientFilePath: '/koaws.js',
-	heartbeat: true,
-	heartbeatInterval: 5000
-}));
+app.use(express.static("docroot"));
+server.listen(80);
 
-app.ws.register('hello', function* () {
-	this.result('world!');
+io.on("connection", function(socket) {
+	socket.emit("news", {"hello": "world"});
+	socket.on("my other event", function(data) {
+    	console.log(data);
+	});
 });
-
-const docroot = path.join(__dirname, '..', 'docroot');
-app.use(koaStatic(docroot));
-
-/*
-app.use(bodyParser());
-app.use(router(app));
-*/
-
-const port = 3000;
-app.listen(port);
-console.log("listen: " + port);
