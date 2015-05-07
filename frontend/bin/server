@@ -1,18 +1,24 @@
 #!/usr/bin/env iojs
+
 /* jslint node: true, esnext: true */
 "use strict";
 
 var express = require("express"),
-	app = express(),
-	server = require("http").Server(app),
-	io = require("socket.io")(server);
+  path = require('path'),
+  app = express(),
+  server = require("http").Server(app),
+  io = require("socket.io")(server);
 
-app.use(express.static("docroot"));
+const docroot = path.join(__dirname, '..', 'docroot');
+
+app.use(express.static(docroot));
 server.listen(80);
 
-io.on("connection", function(socket) {
-	socket.emit("news", {"hello": "world"});
-	socket.on("my other event", function(data) {
-    	console.log(data);
-	});
+io.on("connection", function (socket) {
+  socket.emit("news", {
+    "hello": "world"
+  });
+  socket.on("my other event", function (data) {
+    console.log(data);
+  });
 });
