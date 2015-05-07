@@ -49,17 +49,17 @@ function init() {
         svgLoadingIndicator.setAttribute("class", "ui dimmer");
     });*/
 
-    $(".ui.dropdown").dropdown();
+    updateToolNames();
     $(".left.sidebar .item").tab();
     $(".right.attached.fixed.button")[0].onclick = function() {
         $(".left.sidebar").sidebar("toggle");
     };
 
-    var socket = io.connect("http://"+document.location.host);
-    socket.on("news", function (data) {
+    /*var socket = io.connect("http://"+document.location.host);
+    socket.on("news", function(data) {
         console.log(data);
         socket.emit("my other event", {"my": "data"});
-    });
+    });*/
 }
 
 function render(offset, radius) {
@@ -108,7 +108,6 @@ function updateToolNames() {
         active = toolForm.elements["name"].value;
     while(toolNames.firstChild)
         toolNames.removeChild(toolNames.firstChild);
-    console.log(tools);
     for(var i in tools) {
         var element = document.createElement("div");
         toolNames.appendChild(element);
@@ -116,16 +115,23 @@ function updateToolNames() {
         element.setAttribute("data-value", tools[i].name);
         element.innerText = tools[i].name;
     }
+    $(".ui.dropdown").dropdown({
+        "onChange": setTool
+    });
 }
 
 function setTool() {
     var toolForm = document.getElementById("toolForm");
+    console.log("setTool "+toolForm.elements["name"].value);
     for(var i in tools)
         if(tools[i].name == toolForm.elements["name"].value) {
             for(var j in toolAttributes)
                 toolForm.elements[toolAttributes[j]].value = tools[i][toolAttributes[j]];
             return;
         }
+    for(var j in toolAttributes)
+        if(toolAttributes[j] != "name")
+            toolForm.elements[toolAttributes[j]].value = "";
 }
 
 function removeTool() {
@@ -142,9 +148,9 @@ function removeTool() {
 
 function saveTool() {
     var toolForm = document.getElementById("toolForm"), tool = {};
+    if(toolForm.elements["name"].value == "") return;
     for(var j in toolAttributes)
         tool[toolAttributes[j]] = toolForm.elements[toolAttributes[j]].value;
-    if(tool.name == "") return;
     for(var i in tools)
         if(tools[i].name == toolForm.elements["name"].value) {
             tools[i] = tool;
