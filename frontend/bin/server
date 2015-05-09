@@ -4,10 +4,10 @@
 "use strict";
 
 var express = require("express"),
-  path = require('path'),
-  app = express(),
-  server = require("http").Server(app),
-  io = require("socket.io")(server);
+    path = require('path'),
+    app = express(),
+    server = require("http").Server(app),
+    io = require("socket.io")(server);
 
 const docroot = path.join(__dirname, '..', 'docroot');
 
@@ -15,10 +15,10 @@ app.use(express.static(docroot));
 server.listen(80);
 
 io.on("connection", function (socket) {
-  socket.emit("news", {
-    "hello": "world"
-  });
-  socket.on("my other event", function (data) {
-    console.log(data);
-  });
+    socket.emit("news", {
+        "hello": "world"
+    });
+    socket.on("my other event", function (data) {
+        console.log(data);
+    });
 });

@@ -50,6 +50,7 @@ function init() {
     });*/
 
     updateToolNames();
+    $(".ui.dropdown").dropdown({"onChange": setTool});
     $(".left.sidebar .item").tab();
     $(".right.attached.fixed.button")[0].onclick = function() {
         $(".left.sidebar").sidebar("toggle");
@@ -115,16 +116,13 @@ function updateToolNames() {
         element.setAttribute("data-value", tools[i].name);
         element.innerText = tools[i].name;
     }
-    $(".ui.dropdown").dropdown({
-        "onChange": setTool
-    });
+    $(".ui.dropdown").dropdown("refresh");
 }
 
-function setTool() {
+function setTool(value, text, selectedItem) {
     var toolForm = document.getElementById("toolForm");
-    console.log("setTool "+toolForm.elements["name"].value);
     for(var i in tools)
-        if(tools[i].name == toolForm.elements["name"].value) {
+        if(tools[i].name == value) {
             for(var j in toolAttributes)
                 toolForm.elements[toolAttributes[j]].value = tools[i][toolAttributes[j]];
             return;
