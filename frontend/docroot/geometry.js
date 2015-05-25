@@ -3,7 +3,7 @@ var options = {
     "tStep": 0.1,
     "maxCircleVaricance": 0.001,
     "scalingFactor": 10.0 // 1.411099
-}, workpiece, dangerZone, slug;
+}, workpieces, obstacles, slug;
 
 function parseSVGColor(element) {
     var color = element.getAttribute("fill");
@@ -543,7 +543,7 @@ function parseSVGFile(fileData) {
         throw "No SVG file";
     element = element[0];
 
-    workpiece = [], dangerZone = [], slug = [];
+    workpieces = [], obstacles = [], slug = [];
     var polygons = [];
     for(var i = 0; i < element.childNodes.length; ++i) {
         var child = element.childNodes[i];
@@ -574,18 +574,18 @@ function parseSVGFile(fileData) {
         if(polygons[i].color.s == 0) {
             polygon.children = [];
             polygon.offsetPaths = [];
-            workpiece.push(polygon);
+            workpieces.push(polygon);
         }else if(polygons[i].color.h < Math.PI*1/6 && polygons[i].color.h > Math.PI*5/6)
-            dangerZone.push(polygon);
+            obstacles.push(polygon);
         else if(polygons[i].color.h > Math.PI*3/6 && polygons[i].color.h < Math.PI*5/6)
             slug.push(polygon);
     }
 
     //Check intersections
-    for(var j = 0; j < workpiece.length; ++j) {
-        var polygonA = workpiece[j];
-        for(var j = 0; j < workpiece.length; ++j) {
-            var polygonB = workpiece[j];
+    for(var j = 0; j < workpieces.length; ++j) {
+        var polygonA = workpieces[j];
+        for(var j = 0; j < workpieces.length; ++j) {
+            var polygonB = workpieces[j];
             if(polygonA == polygonB) continue;
             intersection = calculatePolygonsIntersection(polygonA, polygonB);
             if(intersection.length > 0)
@@ -594,10 +594,10 @@ function parseSVGFile(fileData) {
     }
 
     //Build bollean geometry tree
-    for(var i = 0; i < workpiece.length; ++i) {
-        var innerPolygon = workpiece[i];
-        for(var o = 0; o < workpiece.length; ++o)
-            if(traversePolygonTree(workpiece[o], function(outerPolygon) {
+    for(var i = 0; i < workpieces.length; ++i) {
+        var innerPolygon = workpieces[i];
+        for(var o = 0; o < workpieces.length; ++o)
+            if(traversePolygonTree(workpieces[o], function(outerPolygon) {
                 if(innerPolygon != outerPolygon && isPointInsidePolygon(outerPolygon, innerPolygon.points[0], innerPolygon.points[1])) {
                     for(var i = 0; i < outerPolygon.children.length; ++i)
                         if(isPointInsidePolygon(innerPolygon, outerPolygon.children[i].points[0], outerPolygon.children[i].points[1])) {
@@ -609,10 +609,23 @@ function parseSVGFile(fileData) {
                 }else
                     return false;
             })) {
-                workpiece.splice(i--, 1);
+                workpieces.splice(i--, 1);
                 break;
             }
     }
 
-    //console.log(JSON.stringify(workpiece, null, 4));
+    //console.log(JSON.stringify(workpieces, null, 4));
+}
+
+function generateToolPath() {
+    for(var i in workpieces) {
+        var workpiece = generateOutline(workpieces[i], 10);
+        for(var j in obstacles) {
+            var obstacle = obstacles[j],
+                intersection = calculatePolygonsIntersection(workpiece, obstacle);
+            if(intersection.length == 0) continue;
+
+            // TODO
+        }
+    }
 }
