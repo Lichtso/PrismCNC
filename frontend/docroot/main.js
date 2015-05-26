@@ -68,8 +68,8 @@ function render(offset, radius) {
     while(svgCanvas.firstChild)
         svgCanvas.removeChild(svgCanvas.firstChild);
 
-    for(var i in workpiece)
-        traversePolygonTree(workpiece[i], function(original, depth) {
+    for(var i in workpieces)
+        traversePolygonTree(workpieces[i], function(original, depth) {
             var maxR = (depth == 0) ? offset : 0;
             var increment = (depth == 0) ? Math.max(2, offset) : 10;
             for(var r = 0; r <= maxR; r += 10) {

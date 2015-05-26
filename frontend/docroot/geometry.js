@@ -287,11 +287,16 @@ function getLineOfPolygon(points, i) {
     return [points[h-2], points[h-1], points[i], points[i+1]];
 }
 
-function splicePolygon(points, reverse, insert, i, j) {
-    if(reverse)
-        return points.slice(i*2, j*2).concat(insert);
-    else
-        return points.slice(0, i*2).concat(insert).concat(points.slice(j*2));
+function splicePolygon(polygon, reverse, insert, i, j) {
+    polygon.points = (reverse)
+        ? polygon.points.slice(i*2, j*2).concat(insert)
+        : polygon.points.slice(0, i*2).concat(insert).concat(polygon.points.slice(j*2));
+}
+
+function cutPolygon(polygon, reverse, insert, i, j) {
+    polygon.points = ((reverse)
+        ? polygon.points.slice(i*2, j*2)
+        : polygon.points.slice(j*2).concat(polygon.points.slice(0, i*2))).concat(insert);
 }
 
 function calculatePolygonsIntersection(polygonA, polygonB) {
@@ -300,9 +305,9 @@ function calculatePolygonsIntersection(polygonA, polygonB) {
        polygonA.boundingBox[2] > polygonB.boundingBox[0] &&
        polygonA.boundingBox[1] < polygonB.boundingBox[3] &&
        polygonA.boundingBox[3] > polygonB.boundingBox[1])
-        for(var i = 0; i < polygonA.points.length/2; ++i) {
+        for(var i = (polygonA.open)?1:0; i < polygonA.points.length/2; ++i) {
             var lineA = getLineOfPolygon(polygonA.points, i);
-            for(var j = 0; j < polygonB.points.length/2; ++j) {
+            for(var j = (polygonB.open)?1:0; j < polygonB.points.length/2; ++j) {
                 var lineB = getLineOfPolygon(polygonB.points, i);
                 if(calculateLineIntersection(lineA, lineB, intersection))
                     result.push({"polygonA": polygonA, "polygonB": polygonB, "indexA":i, "indexB":j, "point":intersection});
@@ -491,7 +496,7 @@ function generateOutline(original, offset) {
         for(var j = i+2; j < polygon.points.length/2-jEnd; ++j) {
             var lineB = getLineOfPolygon(polygon.points, j);
             if(calculateLineIntersection(lineA, lineB, intersection)) {
-                polygon.points = splicePolygon(polygon.points, j == polygon.points.length/2-1, intersection, i, j);
+                splicePolygon(polygon, j == polygon.points.length/2-1, intersection, i, j);
                 lineA = getLineOfPolygon(polygon.points, i);
                 polygon.intersections = true;
             }
@@ -619,13 +624,18 @@ function parseSVGFile(fileData) {
 
 function generateToolPath() {
     for(var i in workpieces) {
-        var workpiece = generateOutline(workpieces[i], 10);
-        for(var j in obstacles) {
-            var obstacle = obstacles[j],
-                intersection = calculatePolygonsIntersection(workpiece, obstacle);
-            if(intersection.length == 0) continue;
-
-            // TODO
+        for(var r = 10; r <= 10; r += 10) {
+            var path = generateOutline(workpieces[i], r);
+            for(var j in obstacles) {
+                var obstacle = obstacles[j],
+                    intersection = calculatePolygonsIntersection(workpiece, obstacle);
+                if(intersection.length == 0) continue;
+                // TODO
+                for(var k in intersection) {
+                    var element = intersection[k];
+                    // cutPolygon(path, false, element.point, element.indexA, element.indexB);
+                }
+            }
         }
     }
 }
