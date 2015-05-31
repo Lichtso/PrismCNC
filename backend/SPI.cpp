@@ -51,8 +51,11 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     if(!handle)
         return false;
 
-    for(size_t i = 0; i < slaveCount; ++i)
-        setPin(lowestPin-slaveCount+i, i != slaveIndex);
+    for(size_t i = 0; i < slaveCount; ++i) {
+        printf("Selecting %d : %d\n", i, i != slaveIndex);
+        if(!setPin(lowestPin-slaveCount+i, i != slaveIndex))
+            return false;
+    }
 
     struct spi_ioc_transfer transfer;
     memset(&transfer, 0, sizeof(transfer));
@@ -63,8 +66,15 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     //transfer.cs_change = 1;
     //transfer.delay_usecs = 1000;
 
-    for(size_t i = 0; i < slaveCount; ++i)
-        setPin(lowestPin-slaveCount+i, 1);
+    printf("transfering %d\n", size);
+    if(ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != 0)
+        return false;
 
-    return (ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) == 0);
+    for(size_t i = 0; i < slaveCount; ++i) {
+        printf("Deselecting %d\n", i);
+        if(!setPin(lowestPin-slaveCount+i, 1))
+            return false;
+    }
+
+    return true;
 }
