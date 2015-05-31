@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
 
     L6470* motors[1];
     for(size_t i = 0; sizeof(motors)/sizeof(void*); ++i)
-        motors[i] = new L6470(bus, i);
+        motors[i] = new L6470(&bus, i);
 
     motors[0]->move(MOTOR_STEPS, true);
 
