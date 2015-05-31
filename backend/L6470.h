@@ -1,5 +1,34 @@
 #include "SPI.h"
 
+const uint8_t ParamSize[] = {
+    0,
+    22, //ABS_POS
+    9, //EL_POS
+    22, //MARK
+    20, //SPEED
+    12, //ACC
+    12, //DEC
+    10, //MAX_SPEED
+    13, //MIN_SPEED
+    8, //KVAL_HOLD
+    8, //KVAL_RUN
+    8, //KVAL_ACC
+    8, //KVAL_DEC
+    14, //INT_SPEED
+    8, //ST_SLP
+    8, //FN_SLP_ACC
+    8, //FN_SLP_DEC
+    4, //K_THERM
+    5, //ADC_OUT
+    4, //OCD_TH
+    7, //STALL_TH
+    10, //FS_SPD
+    8, //STEP_MODE
+    8, //ALARM_EN
+    16, //CONFIG
+    16 //STATUS
+};
+
 class L6470 {
     bool set(uint8_t len, uint8_t key, uint32_t value);
     bool get(uint8_t len, uint8_t key, uint32_t& value);
@@ -31,35 +60,6 @@ class L6470 {
         ALARM_EN = 0x17,
         CONFIG = 0x18,
         STATUS = 0x19
-    };
-
-    const uint8_t ParamSize[] = {
-        0,
-        22, //ABS_POS
-        9, //EL_POS
-        22, //MARK
-        20, //SPEED
-        12, //ACC
-        12, //DEC
-        10, //MAX_SPEED
-        13, //MIN_SPEED
-        8, //KVAL_HOLD
-        8, //KVAL_RUN
-        8, //KVAL_ACC
-        8, //KVAL_DEC
-        14, //INT_SPEED
-        8, //ST_SLP
-        8, //FN_SLP_ACC
-        8, //FN_SLP_DEC
-        4, //K_THERM
-        5, //ADC_OUT
-        4, //OCD_TH
-        7, //STALL_TH
-        10, //FS_SPD
-        8, //STEP_MODE
-        8, //ALARM_EN
-        16, //CONFIG
-        16 //STATUS
     };
 
     SPI* bus;

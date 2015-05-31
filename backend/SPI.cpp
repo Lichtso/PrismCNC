@@ -2,7 +2,7 @@
 #include <linux/spi/spidev.h>
 #include "SPI.h"
 
-bool setPin(size_t pin, size_t value, bool mode = false) {
+static bool setPin(size_t pin, size_t value, bool mode = false) {
     const char* key = (mode) ? "mode" : "pin";
     char buffer[256];
     sprintf(buffer, "/sys/devices/virtual/misc/gpio/%s/gpio%d", key, pin);
@@ -11,7 +11,7 @@ bool setPin(size_t pin, size_t value, bool mode = false) {
     lseek(fp, 0, SEEK_SET);
     memset(buffer, 0, 4);
     sprintf(buffer, "%d", value);
-    write(fp, buffer, 4);
+    if(write(fp, buffer, 4) != 4) return false;
     close(fp);
     return true;
 }
