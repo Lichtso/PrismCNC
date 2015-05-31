@@ -37,6 +37,7 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
 uint32_t SPI::getMaxFrequency() {
     if(!handle)
         return 0;
+    printf("Handle is open %p:%d.\n", this, handle);
     uint32_t value = 0;
     ioctl(handle, SPI_IOC_RD_MAX_SPEED_HZ, &value);
     return value;
@@ -48,8 +49,10 @@ SPI::~SPI() {
 }
 
 bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
-    if(!handle)
+    if(!handle) {
+        printf("Handle is NOT open %p:%d.\n", this, handle);
         return false;
+    }
 
     for(size_t i = 0; i < slaveCount; ++i) {
         printf("Selecting %d : %d\n", i, i != slaveIndex);
@@ -76,5 +79,6 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
             return false;
     }
 
+    printf("Success\n");
     return true;
 }
