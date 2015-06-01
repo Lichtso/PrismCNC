@@ -12,9 +12,9 @@ int main(int argc, char** argv) {
     motors[0]->resetHome();
     motors[0]->move(MOTOR_STEPS, true);
     uint32_t value;
-    motors[0]->getParam(ABS_POS, value);
+    motors[0]->getParam(L6470::ParamName::ABS_POS, value);
     printf("ABS_POS: %d\n", value);
-    motors[0]->getParam(STATUS, value);
+    motors[0]->getParam(L6470::ParamName::STATUS, value);
     printf("STATUS: %d\n", value);
 
     /*FILE* pipe = popen("frontend/bin/server", "w");
