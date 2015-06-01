@@ -80,13 +80,13 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     transfer.cs_change = 0;
     transfer.pad = 0;*/
 
-    printf("transfering %d %llu\n", size, ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
+    printf("transfering %llu %d\n", size, ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
 
-    for(size_t i = 0; i < slaveCount; ++i) {
+    /*for(size_t i = 0; i < slaveCount; ++i) {
         printf("Deselecting %d\n", i);
         if(!setPin(lowestPin-slaveCount+i, 1))
             return false;
-    }
+    }*/
 
     printf("Success\n");
     return true;
