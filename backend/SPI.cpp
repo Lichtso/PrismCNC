@@ -26,7 +26,7 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
 
     handle = open("/dev/spidev0.0", O_RDWR);
     if(handle) {
-        uint8_t setting = SPI_NO_CS; // SPI_CPHA SPI_CPOL
+        uint8_t setting = 0; // SPI_NO_CS SPI_CPHA SPI_CPOL
         if(ioctl(handle, SPI_IOC_WR_MODE, &setting) < 0)
             printf("SPI Mode Change failure: %s\n", strerror(errno));
 
@@ -70,19 +70,17 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     }
 
     struct spi_ioc_transfer transfer;
-    //memset(&transfer, 0, sizeof(transfer));
+    memset(&transfer, 0, sizeof(transfer));
     transfer.tx_buf = (uint64_t)buffer;
     transfer.rx_buf = (uint64_t)buffer;
     transfer.len = size;
-    transfer.speed_hz = 5000000;
+    /*transfer.speed_hz = 5000000;
     transfer.delay_usecs = 1000;
     transfer.bits_per_word = 8;
-    transfer.tx_nbits = transfer.rx_nbits = 1;
     transfer.cs_change = 0;
-    transfer.pad = 0;
+    transfer.pad = 0;*/
 
     printf("transfering %d %d\n", size, ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
-    printf("errno %s\n", strerror(errno));
 
     for(size_t i = 0; i < slaveCount; ++i) {
         printf("Deselecting %d\n", i);

@@ -9,7 +9,13 @@ int main(int argc, char** argv) {
     for(size_t i = 0; i < sizeof(motors)/sizeof(void*); ++i)
         motors[i] = new L6470(&bus, i);
 
+    motors[0]->resetHome();
     motors[0]->move(MOTOR_STEPS, true);
+    uint32_t value;
+    motors[0]->getParam(ABS_POS, value);
+    printf("ABS_POS: %d\n", value);
+    motors[0]->getParam(STATUS, value);
+    printf("STATUS: %d\n", value);
 
     /*FILE* pipe = popen("frontend/bin/server", "w");
     if(!pipe) {
