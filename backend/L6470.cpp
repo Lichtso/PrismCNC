@@ -1,12 +1,9 @@
 #include "L6470.h"
 
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
-    :bus(_bus), slaveIndex(_slaveIndex) {
-    printf("L6470 bus: %p:%d\n", bus, bus->handle);
-}
+    :bus(_bus), slaveIndex(_slaveIndex) { }
 
 bool L6470::set(uint8_t len, uint8_t key, uint32_t value) {
-    printf("L6470::set\n");
     uint8_t buffer[4];
     buffer[0] = key;
     for(size_t i = 1; i < 4; ++i)

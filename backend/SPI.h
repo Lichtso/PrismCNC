@@ -6,8 +6,8 @@
 
 class SPI {
     static const size_t lowestPin = 11;
-    public:
     int handle;
+    public:
     size_t slaveCount;
     SPI(size_t slaveCount);
     ~SPI();
