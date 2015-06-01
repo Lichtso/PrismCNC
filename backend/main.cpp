@@ -9,7 +9,9 @@ int main(int argc, char** argv) {
     for(size_t i = 0; sizeof(motors)/sizeof(void*); ++i)
         motors[i] = new L6470(&bus, i);
 
+    printf("motors[0]->move\n");
     motors[0]->move(MOTOR_STEPS, true);
+    printf("END\n");
 
     /*FILE* pipe = popen("frontend/bin/server", "w");
     if(!pipe) {

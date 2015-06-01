@@ -49,6 +49,7 @@ SPI::~SPI() {
 }
 
 bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
+    printf("SPI::transfer\n");
     if(!handle) {
         printf("Handle is NOT open %p:%d.\n", this, handle);
         return false;
