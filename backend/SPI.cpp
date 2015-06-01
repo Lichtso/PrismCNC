@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 #include "SPI.h"
@@ -66,13 +67,12 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     transfer.tx_buf = (uint64_t)buffer;
     transfer.rx_buf = (uint64_t)buffer;
     transfer.len = size;
-    transfer.speed_hz = 500000;
+    transfer.speed_hz = 5000000;
     //transfer.cs_change = 1;
     //transfer.delay_usecs = 1000;
 
-    printf("transfering %d\n", size);
-    if(ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != 0)
-        return false;
+    printf("transfering %d %d\n", size, ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
+    printf("errno %d : %x\n", errno, errno);
 
     for(size_t i = 0; i < slaveCount; ++i) {
         printf("Deselecting %d\n", i);
