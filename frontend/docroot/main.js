@@ -36,7 +36,7 @@ function init() {
         svgLoadingIndicator.setAttribute("class", "ui dimmer active");
         reader.onload = function(result) {
             parseSVGFile(result.target.result);
-            render(0, 2);
+            render();
             svgLoadingIndicator.setAttribute("class", "ui dimmer");
         };
         reader.readAsText(files[0]);
@@ -63,42 +63,36 @@ function init() {
     });*/
 }
 
-function render(offset, radius) {
+function render() {
     var svgCanvas = document.getElementById("svgCanvas");
     while(svgCanvas.firstChild)
         svgCanvas.removeChild(svgCanvas.firstChild);
 
     for(var i in workpieces)
-        traversePolygonTree(workpieces[i], function(original, depth) {
-            var maxR = (depth == 0) ? offset : 0;
-            var increment = (depth == 0) ? Math.max(2, offset) : 10;
-            for(var r = 0; r <= maxR; r += 10) {
-                var polygon = generateOutline(original, (depth%2) ? -r : r);
+        traversePolygonTree(workpieces[i], function(polygon, depth) {
+            var data = "";
+            data += "M"+polygon.points[0]+","+polygon.points[1];
+            for(var j = 2; j < polygon.points.length; j += 2)
+                data += "L"+polygon.points[j]+","+polygon.points[j+1];
+            data += "z";
 
-                var data = "";
-                data += "M"+polygon.points[0]+","+polygon.points[1];
-                for(var j = 2; j < polygon.points.length; j += 2)
-                    data += "L"+polygon.points[j]+","+polygon.points[j+1];
-                data += "z";
+            /*var pr = 1;
+            for(var j = 0; j < polygon.points.length; j += 2)
+                data += "M"+polygon.points[j]+","+(polygon.points[j+1]+pr)+"a"+pr+","+pr+",0,0,0,0,"+pr*2+"a"+pr+","+pr+",0,0,0,0,-"+pr*2;*/
 
-                /*var pr = 1;
-                for(var j = 0; j < polygon.points.length; j += 2)
-                    data += "M"+polygon.points[j]+","+(polygon.points[j+1]+pr)+"a"+pr+","+pr+",0,0,0,0,"+pr*2+"a"+pr+","+pr+",0,0,0,0,-"+pr*2;*/
-
-                var element = document.createElementNS(svgCanvas.getAttribute("xmlns"), "path");
-                svgCanvas.appendChild(element);
-                element.setAttribute("d", data);
-                element.setAttribute("fill", "none");
-                element.setAttribute("stroke", (r == 0) ? "black" : "green");
-                element.setAttribute("stroke-linejoin", "round");
-                element.setAttribute("stroke-width", (r == 0) ? 2 : 2);
-                /*element.onmouseover = function() {
-                    element.setAttribute("stroke", "cyan");
-                };
-                element.onmouseout = function() {
-                    element.setAttribute("stroke", (polygon.intersections) ? "red" : "black");
-                };*/
-            }
+            var element = document.createElementNS(svgCanvas.getAttribute("xmlns"), "path");
+            svgCanvas.appendChild(element);
+            element.setAttribute("d", data);
+            element.setAttribute("fill", "none");
+            element.setAttribute("stroke", "black");
+            element.setAttribute("stroke-linejoin", "round");
+            element.setAttribute("stroke-width", 2);
+            /*element.onmouseover = function() {
+                element.setAttribute("stroke", "cyan");
+            };
+            element.onmouseout = function() {
+                element.setAttribute("stroke", (polygon.intersections) ? "red" : "black");
+            };*/
         });
 }
 

@@ -14,8 +14,8 @@ int main(int argc, char** argv) {
     uint32_t value;
     motors[0]->getParam(L6470::ParamName::ABS_POS, value);
     printf("ABS_POS: %d\n", value);
-    motors[0]->getParam(L6470::ParamName::STATUS, value);
-    printf("STATUS: %d\n", value);
+    motors[0]->getParam(L6470::ParamName::SPEED, value);
+    printf("SPEED: %d\n", value);
 
     /*FILE* pipe = popen("frontend/bin/server", "w");
     if(!pipe) {

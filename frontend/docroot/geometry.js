@@ -619,13 +619,17 @@ function parseSVGFile(fileData) {
             }
     }
 
+    generateToolPath(10, 50);
     //console.log(JSON.stringify(workpieces, null, 4));
 }
 
-function generateToolPath() {
+function generateToolPath(radius, distance) {
     for(var i in workpieces) {
-        for(var r = 10; r <= 10; r += 10) {
-            var path = generateOutline(workpieces[i], r);
+        var original = workpieces[i];
+        i--;
+        workpieces.slice(i, i+1);
+        for(var r = 0; r <= distance; r += radius) {
+            var path = generateOutline(original, r);
             for(var j in obstacles) {
                 var obstacle = obstacles[j],
                     intersection = calculatePolygonsIntersection(workpiece, obstacle);
@@ -636,6 +640,8 @@ function generateToolPath() {
                     // cutPolygon(path, false, element.point, element.indexA, element.indexB);
                 }
             }
+            workpieces.push(path);
+            i++;
         }
     }
 }
