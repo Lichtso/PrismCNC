@@ -13,15 +13,15 @@ int main(int argc, char** argv) {
 
     motors[0]->resetHome();
     motors[0]->move(MOTOR_STEPS*MOTOR_MICROSTEPS, true);
-    usleep(300000);
-    motors[0]->getParam(L6470::ParamName::SPEED, value);
-    printf("SPEED: %d\n", value);
-    usleep(300000);
+    while(true) {
+        usleep(10000);
+        motors[0]->getParam(L6470::ParamName::ABS_POS, value);
+        printf("ABS_POS: %d\n", value);
+        motors[0]->getParam(L6470::ParamName::SPEED, value);
+        printf("SPEED: %d\n", value);
+        if(value == 0) break;
+    }
     motors[0]->setIdle(false);
-    motors[0]->getParam(L6470::ParamName::ABS_POS, value);
-    printf("ABS_POS: %d\n", value);
-    motors[0]->getParam(L6470::ParamName::SPEED, value);
-    printf("SPEED: %d\n", value);
 
     /*FILE* pipe = popen("frontend/bin/server", "w");
     if(!pipe) {
