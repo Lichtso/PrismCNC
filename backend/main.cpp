@@ -1,5 +1,6 @@
 #include "L6470.h"
 #define MOTOR_STEPS 200
+#define MOTOR_MICROSTEPS 128
 
 int main(int argc, char** argv) {
     SPI bus(3);
@@ -10,12 +11,13 @@ int main(int argc, char** argv) {
         motors[i] = new L6470(&bus, i);
 
     motors[0]->resetHome();
-    motors[0]->move(MOTOR_STEPS, true);
+    motors[0]->move(MOTOR_STEPS*MOTOR_MICROSTEPS, true);
     uint32_t value;
     motors[0]->getParam(L6470::ParamName::ABS_POS, value);
     printf("ABS_POS: %d\n", value);
     motors[0]->getParam(L6470::ParamName::SPEED, value);
     printf("SPEED: %d\n", value);
+    motors[0]->setIdle(false);
 
     /*FILE* pipe = popen("frontend/bin/server", "w");
     if(!pipe) {
