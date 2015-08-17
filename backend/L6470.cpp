@@ -20,8 +20,8 @@ bool L6470::get(uint8_t len, uint8_t key, uint32_t& value) {
     value = 0x00;
     for(size_t i = 1; i < 4; ++i)
         value |= buffer[i] << (24-8*i);
-    
-    for(size_t i = 0; i < len; ++i)
+
+    for(size_t i = 1; i < 4; ++i)
         printf("%02X ", buffer[i]);
     return true;
 }
