@@ -83,10 +83,10 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
            !setPin(lowestPin-slaveCount+slaveIndex, 1))
             return false;
     }
-    printf(" | ");
+    printf("| ");
     for(size_t i = 0; i < size; ++i)
         printf("%02X ", buffer[i]);
-    printf(" | ");
+    printf("| ");
 
     return true;
 }
