@@ -71,21 +71,21 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* outBuffer, uint64_t size) {
 
     uint8_t inBuffer[size];
     struct spi_ioc_transfer transfer;
-    memset(&transfer, 0, sizeof(transfer));
-    transfer.tx_buf = (uint64_t)outBuffer;
-    transfer.rx_buf = (uint64_t)inBuffer;
-    transfer.len = size;
     /*transfer.speed_hz = 5000000;
     transfer.delay_usecs = 1000;
     transfer.bits_per_word = 8;
     transfer.cs_change = 0;
     transfer.pad = 0;*/
 
-    for(size_t i = 0; i < size; ++i)
-        printf("%02X ", outBuffer[i]);
-    printf("transfered %llu\n", ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
-    for(size_t i = 0; i < size; ++i)
-        printf("%02X ", inBuffer[i]);
+    for(size_t i = 0; i < size; ++i) {
+        memset(&transfer, 0, sizeof(transfer));
+        transfer.tx_buf = (uint64_t)&outBuffer[i];
+        transfer.rx_buf = (uint64_t)&inBuffer[i];
+        transfer.len = 1;
+        printf("> %02X : %lu\n", outBuffer[i], ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
+        printf("< %02X\n", inBuffer[i]);
+    }
+    
     memcpy(outBuffer, inBuffer, size);
 
     for(size_t i = 0; i < slaveCount; ++i) {
