@@ -10,7 +10,8 @@ int main(int argc, char** argv) {
     for(size_t i = 0; i < sizeof(motors)/sizeof(void*); ++i)
         motors[i] = new L6470(&bus, i);
 
-    motors[0]->setParam(L6470::ParamName::MAX_SPEED, 10000);
+    motors[0]->setParam(L6470::ParamName::STALL_TH, 4);
+    motors[0]->setParam(L6470::ParamName::MAX_SPEED, 30);
     motors[0]->resetHome();
     motors[0]->move(8*MOTOR_STEPS*MOTOR_MICROSTEPS, true);
     while(true) {
