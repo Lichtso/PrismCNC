@@ -34,7 +34,7 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
         if(ioctl(handle, SPI_IOC_WR_BITS_PER_WORD, &setting) < 0)
             printf("SPI BPW Change failure: %s\n", strerror(errno));
 
-        uint32_t frequency = 1000000;
+        uint32_t frequency = 5000000;
         if(ioctl(handle, SPI_IOC_WR_MAX_SPEED_HZ, &frequency) < 0)
             printf("SPI Speed Change failure: %s\n", strerror(errno));
 
@@ -56,44 +56,41 @@ SPI::~SPI() {
         close(handle);
 }
 
-bool SPI::transfer(size_t slaveIndex, uint8_t* outBuffer, uint64_t size) {
+bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     printf("SPI::transfer\n");
     if(!handle) {
         printf("Handle is NOT open %p:%d.\n", this, handle);
         return false;
     }
 
-    for(size_t i = 0; i < slaveCount; ++i) {
-        //printf("Selecting %d : %d\n", i, i != slaveIndex);
-        if(!setPin(lowestPin-slaveCount+i, i != slaveIndex))
+    for(size_t i = 0; i < slaveCount; ++i)
+        if(!setPin(lowestPin-slaveCount+i, 1))
             return false;
-    }
 
-    uint8_t inBuffer[size];
     struct spi_ioc_transfer transfer;
+    memset(&transfer, 0, sizeof(transfer));
     /*transfer.speed_hz = 5000000;
     transfer.delay_usecs = 1000;
     transfer.bits_per_word = 8;
     transfer.cs_change = 0;
     transfer.pad = 0;*/
+    transfer.len = 1;
 
     for(size_t i = 0; i < size; ++i) {
-        memset(&transfer, 0, sizeof(transfer));
-        transfer.tx_buf = (uint64_t)&outBuffer[i];
-        transfer.rx_buf = (uint64_t)&inBuffer[i];
-        transfer.len = 1;
-        printf("> %02X : %lu\n", outBuffer[i], ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
-        printf("< %02X\n", inBuffer[i]);
-    }
-    
-    memcpy(outBuffer, inBuffer, size);
-
-    for(size_t i = 0; i < slaveCount; ++i) {
-        //printf("Deselecting %d\n", i);
-        if(!setPin(lowestPin-slaveCount+i, 1))
+        printf("%02X ", buffer[i]);
+        if(!setPin(lowestPin-slaveCount+slaveIndex, 0))
+            return false;
+        transfer.tx_buf = transfer.rx_buf = (uint64_t)&buffer[i];
+        if(ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != transfer.len)
+            return false;
+        if(!setPin(lowestPin-slaveCount+slaveIndex, 1))
             return false;
     }
+    printf("sent\n");
 
-    printf("Success\n");
+    for(size_t i = 0; i < size; ++i)
+        printf("%02X ", buffer[i]);
+    printf("received\n");
+    
     return true;
 }
