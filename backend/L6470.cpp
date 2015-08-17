@@ -24,15 +24,17 @@ bool L6470::get(uint8_t len, uint8_t key, uint32_t& value) {
 }
 
 bool L6470::setParam(ParamName param, uint32_t value) {
-    if(param == 0 || param >= sizeof(ParamSize))
+    uint8_t key = static_cast<uint32_t>(param);
+    if(key == 0 || key >= sizeof(ParamSize))
         return false;
-    return set((ParamSize[param]+7)/8, param, value);
+    return set((ParamSize[key]+7)/8, key, value);
 }
 
 bool L6470::getParam(ParamName param, uint32_t& value) {
-    if(param == 0 || param >= sizeof(ParamSize))
+    uint8_t key = static_cast<uint32_t>(param);
+    if(key == 0 || key >= sizeof(ParamSize))
         return false;
-    return get((ParamSize[param]+7)/8, param | 0x20, value);
+    return get((ParamSize[key]+7)/8, key | 0x20, value);
 }
 
 bool L6470::run(uint32_t speed, bool forward) {
