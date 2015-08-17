@@ -8,19 +8,19 @@ bool L6470::set(uint8_t len, uint8_t key, uint32_t value) {
     buffer[0] = key;
     buffer[1] = buffer[2] = buffer[3] = 0x00;
     for(size_t i = 1; i <= len; ++i)
-        buffer[i] = value >> (8*(len-i));
-    return bus->transfer(slaveIndex, buffer, 1+len);
+        buffer[i] = value >> (8*(3-i));
+    return bus->transfer(slaveIndex, buffer, (len == 1) ? 1 : 4);
 }
 
 bool L6470::get(uint8_t len, uint8_t key, uint32_t& value) {
     uint8_t buffer[4];
     buffer[0] = key;
     buffer[1] = buffer[2] = buffer[3] = 0x00;
-    if(!bus->transfer(slaveIndex, buffer, 1+len))
+    if(!bus->transfer(slaveIndex, buffer, 4))
         return false;
     value = 0;
     for(size_t i = 1; i <= len; ++i)
-        value |= buffer[i] << (8*(len-i));
+        value |= buffer[i] << (8*(3-i));
     return true;
 }
 
