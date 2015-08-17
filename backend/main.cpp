@@ -12,7 +12,8 @@ int main(int argc, char** argv) {
         motors[i] = new L6470(&bus, i);
 
     motors[0]->resetHome();
-    motors[0]->move(MOTOR_STEPS*MOTOR_MICROSTEPS, true);
+    motors[0]->setParam(L6470::ParamName::MAX_SPEED, 5000);
+    motors[0]->move(8*MOTOR_STEPS*MOTOR_MICROSTEPS, true);
     while(true) {
         usleep(10000);
         motors[0]->getParam(L6470::ParamName::ABS_POS, value);
