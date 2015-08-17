@@ -16,10 +16,10 @@ int main(int argc, char** argv) {
     motors[0]->move(8*MOTOR_STEPS*MOTOR_MICROSTEPS, true);
     while(true) {
         usleep(10000);
-        motors[0]->getParam(L6470::ParamName::ABS_POS, value);
-        printf("ABS_POS: %d\n", value);
         motors[0]->resetFlags(value);
-        printf("STATUS: %d\n", value);
+        printf("STATUS: %08X\n", value);
+        motors[0]->getParam(L6470::ParamName::SPEED, value);
+        printf("SPEED: %d\n", value);
         if(value == 0) break;
     }
     motors[0]->setIdle(false);
