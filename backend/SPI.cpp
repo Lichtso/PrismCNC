@@ -81,6 +81,7 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
            ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != transfer.len ||
            !setPin(lowestPin-slaveCount+slaveIndex, 1))
             return false;
+        usleep(1);
     }
 
     return true;
