@@ -34,7 +34,7 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
         if(ioctl(handle, SPI_IOC_WR_BITS_PER_WORD, &setting) < 0)
             printf("SPI BPW Change failure: %s\n", strerror(errno));
 
-        uint32_t frequency = 16000000;
+        uint32_t frequency = 1000000;
         if(ioctl(handle, SPI_IOC_WR_MAX_SPEED_HZ, &frequency) < 0)
             printf("SPI Speed Change failure: %s\n", strerror(errno));
 
@@ -64,7 +64,7 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     }
 
     for(size_t i = 0; i < slaveCount; ++i) {
-        printf("Selecting %d : %d\n", i, i != slaveIndex);
+        //printf("Selecting %d : %d\n", i, i != slaveIndex);
         if(!setPin(lowestPin-slaveCount+i, i != slaveIndex))
             return false;
     }
@@ -83,9 +83,11 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     for(size_t i = 0; i < size; ++i)
         printf("%02X ", buffer[i]);
     printf("\ntransfering %llu %d\n", size, ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
+    for(size_t i = 0; i < size; ++i)
+        printf("%02X ", buffer[i]);
 
     for(size_t i = 0; i < slaveCount; ++i) {
-        printf("Deselecting %d\n", i);
+        //printf("Deselecting %d\n", i);
         if(!setPin(lowestPin-slaveCount+i, 1))
             return false;
     }
