@@ -2,26 +2,29 @@
 #define MOTOR_STEPS 200
 #define MOTOR_MICROSTEPS 128
 
+void waitUntilDone(L6470* motor) {
+    uint32_t value;
+    do {
+        usleep(10000);
+        motor->getParam(L6470::ParamName::SPEED, value);
+        printf("SPEED: %d\n", value);
+    } while(value);
+}
+
 int main(int argc, char** argv) {
     SPI bus(3);
 
-    uint32_t value;
-    L6470* motors[1];
+    L6470* motors[3];
     for(size_t i = 0; i < sizeof(motors)/sizeof(void*); ++i)
         motors[i] = new L6470(&bus, i);
 
     motors[0]->setParam(L6470::ParamName::STALL_TH, 10);
     motors[0]->setParam(L6470::ParamName::MAX_SPEED, 30);
     motors[0]->resetHome();
-    motors[0]->move(8*MOTOR_STEPS*MOTOR_MICROSTEPS, true);
-    while(true) {
-        usleep(10000);
-        motors[0]->resetFlags(value);
-        printf("STATUS: %08X\n", value);
-        motors[0]->getParam(L6470::ParamName::SPEED, value);
-        printf("SPEED: %d\n", value);
-        if(value == 0) break;
-    }
+    motors[0]->move(MOTOR_STEPS*MOTOR_MICROSTEPS, true);
+    waitUntilDone(motors[0]);
+    motors[0]->move(MOTOR_STEPS*MOTOR_MICROSTEPS, false);
+    waitUntilDone(motors[0]);
     motors[0]->setIdle(false);
 
     /*FILE* pipe = popen("frontend/bin/server", "w");
