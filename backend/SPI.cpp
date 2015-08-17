@@ -76,12 +76,17 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     transfer.len = 1;
 
     for(size_t i = 0; i < size; ++i) {
+        printf("%02X ", buffer[i]);
         transfer.tx_buf = transfer.rx_buf = (uint64_t)&buffer[i];
         if(!setPin(lowestPin-slaveCount+slaveIndex, 0) ||
            ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != transfer.len ||
            !setPin(lowestPin-slaveCount+slaveIndex, 1))
             return false;
     }
+    printf("| ");
+    for(size_t i = 0; i < size; ++i)
+        printf("%02X ", buffer[i]);
+    printf("| ");
 
     return true;
 }

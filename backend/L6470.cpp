@@ -7,7 +7,6 @@ bool L6470::set(uint8_t len, uint8_t key, uint32_t value) {
     uint8_t buffer[4];
     buffer[0] = key;
     buffer[1] = buffer[2] = buffer[3] = 0x00;
-    //memcpy(buffer+1, &value, len);
     for(size_t i = 0; i < len; ++i)
         buffer[i+1] = value >> (8*(len-i));
     return bus->transfer(slaveIndex, buffer, 1+len);
@@ -19,8 +18,7 @@ bool L6470::get(uint8_t len, uint8_t key, uint32_t& value) {
     buffer[1] = buffer[2] = buffer[3] = 0x00;
     if(!bus->transfer(slaveIndex, buffer, 1+len))
         return false;
-    //memcpy(&value, buffer+1, len);
-    value = 0x00;
+    value = 0;
     for(size_t i = 0; i < len; ++i)
         value |= buffer[i+1] << (8*(len-i));
     return true;
