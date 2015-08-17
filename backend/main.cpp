@@ -4,14 +4,13 @@
 
 int main(int argc, char** argv) {
     SPI bus(3);
-    printf("Max speed: %d Hz\n", bus.getMaxFrequency());
 
     uint32_t value;
     L6470* motors[1];
     for(size_t i = 0; i < sizeof(motors)/sizeof(void*); ++i)
         motors[i] = new L6470(&bus, i);
 
-    motors[0]->setParam(L6470::ParamName::MAX_SPEED, 8000);
+    motors[0]->setParam(L6470::ParamName::MAX_SPEED, 10000);
     motors[0]->resetHome();
     motors[0]->move(8*MOTOR_STEPS*MOTOR_MICROSTEPS, true);
     while(true) {
