@@ -56,7 +56,7 @@ SPI::~SPI() {
         close(handle);
 }
 
-bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
+bool SPI::transfer(size_t slaveIndex, uint8_t* outBuffer, uint64_t size) {
     printf("SPI::transfer\n");
     if(!handle) {
         printf("Handle is NOT open %p:%d.\n", this, handle);
@@ -69,10 +69,11 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
             return false;
     }
 
+    uint8_t inBuffer[size];
     struct spi_ioc_transfer transfer;
     memset(&transfer, 0, sizeof(transfer));
-    transfer.tx_buf = (uint64_t)buffer;
-    transfer.rx_buf = (uint64_t)buffer;
+    transfer.tx_buf = (uint64_t)outBuffer;
+    transfer.rx_buf = (uint64_t)inBuffer;
     transfer.len = size;
     /*transfer.speed_hz = 5000000;
     transfer.delay_usecs = 1000;
@@ -81,10 +82,11 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     transfer.pad = 0;*/
 
     for(size_t i = 0; i < size; ++i)
-        printf("%02X ", buffer[i]);
-    printf("\ntransfering %llu %d\n", size, ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
+        printf("%02X ", outBuffer[i]);
+    printf("transfered %llu\n", ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
     for(size_t i = 0; i < size; ++i)
-        printf("%02X ", buffer[i]);
+        printf("%02X ", inBuffer[i]);
+    memcpy(outBuffer, inBuffer, size);
 
     for(size_t i = 0; i < slaveCount; ++i) {
         //printf("Deselecting %d\n", i);
