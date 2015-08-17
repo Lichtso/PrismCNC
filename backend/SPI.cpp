@@ -2,6 +2,7 @@
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 #include "SPI.h"
+#define slavePin(index) (lowestPin-slaveCount+(index))
 
 static bool setPin(size_t pin, size_t value, bool mode = false) {
     const char* key = (mode) ? "mode" : "pin";
@@ -41,7 +42,9 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
         printf("SPI::SPI done\n");
     }
 
-    setPin(lowestPin-slaveCount-1, 1);
+    setPin(slavePin(-1), 1, true);
+    setPin(slavePin(-1), 1);
+    usleep(1);
 }
 
 SPI::~SPI() {
@@ -65,24 +68,24 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
         return false;
     }
 
-    for(size_t i = 0; i < slaveCount; ++i)
-        if(!setPin(lowestPin-slaveCount+i, 1))
-            return false;
-
     struct spi_ioc_transfer transfer;
     memset(&transfer, 0, sizeof(transfer));
+    transfer.len = 1;
     /*transfer.speed_hz = 5000000;
     transfer.delay_usecs = 1000;
     transfer.bits_per_word = 8;
     transfer.cs_change = 0;
     transfer.pad = 0;*/
-    transfer.len = 1;
+
+    for(size_t i = 0; i < slaveCount; ++i)
+        if(!setPin(slavePin(i), 1))
+            return false;
 
     for(size_t i = 0; i < size; ++i) {
         transfer.tx_buf = transfer.rx_buf = (uint64_t)&buffer[i];
-        if(!setPin(lowestPin-slaveCount+slaveIndex, 0) ||
+        if(!setPin(slavePin(slaveIndex), 0) ||
            ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != transfer.len ||
-           !setPin(lowestPin-slaveCount+slaveIndex, 1))
+           !setPin(slavePin(slaveIndex), 1))
             return false;
     }
 
