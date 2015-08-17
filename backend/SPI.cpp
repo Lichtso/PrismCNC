@@ -40,6 +40,14 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
 
         printf("SPI::SPI done\n");
     }
+
+    setPin(lowestPin-slaveCount-1, 1);
+}
+
+SPI::~SPI() {
+    setPin(lowestPin-slaveCount-1, 0);
+    if(handle)
+        close(handle);
 }
 
 uint32_t SPI::getMaxFrequency() {
@@ -49,11 +57,6 @@ uint32_t SPI::getMaxFrequency() {
     uint32_t value = 0;
     ioctl(handle, SPI_IOC_RD_MAX_SPEED_HZ, &value);
     return value;
-}
-
-SPI::~SPI() {
-    if(handle)
-        close(handle);
 }
 
 bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
