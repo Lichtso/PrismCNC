@@ -6,23 +6,23 @@ L6470::L6470(SPI* _bus, size_t _slaveIndex)
 bool L6470::set(uint8_t len, uint8_t key, uint32_t value) {
     uint8_t buffer[4];
     buffer[0] = key;
-    for(size_t i = 1; i < 4; ++i)
-        buffer[i] = (value >> (24-8*i)) & 0xFF;
-    return bus->transfer(slaveIndex, buffer, (len) ? 4 : 1);
+    buffer[1] = buffer[2] = buffer[3] = 0x00;
+    memcpy(buffer+1, &value, len);
+    //for(size_t i = 0; i < len; ++i)
+    //    buffer[i+1] = (value >> (24-8*i)) & 0xFF;
+    return bus->transfer(slaveIndex, buffer, 1+len);
 }
 
 bool L6470::get(uint8_t len, uint8_t key, uint32_t& value) {
     uint8_t buffer[4];
     buffer[0] = key;
     buffer[1] = buffer[2] = buffer[3] = 0x00;
-    if(!bus->transfer(slaveIndex, buffer, 4))
+    if(!bus->transfer(slaveIndex, buffer, 1+len))
         return false;
-    value = 0x00;
-    for(size_t i = 1; i < 4; ++i)
-        value |= buffer[i] << (24-8*i);
-
-    for(size_t i = 1; i < 4; ++i)
-        printf("%02X ", buffer[i]);
+    memcpy(&value, buffer+1, len);
+    /*value = 0x00;
+    for(size_t i = 0; i < len; ++i)
+        value |= buffer[i+1] << (24-8*i);*/
     return true;
 }
 
