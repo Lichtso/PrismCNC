@@ -34,7 +34,7 @@ class L6470 {
     bool get(uint8_t len, uint8_t key, uint32_t& value);
 
     public:
-    enum ParamName {
+    enum class ParamName {
         ABS_POS = 0x01,
         EL_POS = 0x02,
         MARK = 0x03,

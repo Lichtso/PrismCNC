@@ -81,7 +81,7 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     transfer.pad = 0;*/
 
     for(size_t i = 0; i < size; ++i)
-        printf("%02X ", buffer);
+        printf("%02X ", buffer[i]);
     printf("\ntransfering %llu %d\n", size, ioctl(handle, SPI_IOC_MESSAGE(1), &transfer));
 
     /*for(size_t i = 0; i < slaveCount; ++i) {
