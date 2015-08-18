@@ -27,13 +27,13 @@ SPI::SPI(size_t slaveCount, uint32_t frequency) {
 
     bool success = true;
     for(size_t i = 0; i < 3; ++i) {
-        bus.push_back(new GPIOpin(busPinIndex+i));
+        bus.push_back(std::unique_ptr<GPIOpin>(new GPIOpin(busPinIndex+i)));
         GPIOpin* pin = slaveCS[i].get();
         success &= pin->setMode(2);
     }
 
     for(size_t i = 0; i < slaveCount; ++i) {
-        slaveCS.push_back(new GPIOpin(busPinIndex-slaveCount+i));
+        slaveCS.push_back(std::unique_ptr<GPIOpin>(new GPIOpin(busPinIndex-slaveCount+i)));
         GPIOpin* pin = slaveCS[i].get();
         success &= pin->setMode(1);
         success &= pin->setValue(1);

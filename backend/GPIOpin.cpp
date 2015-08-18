@@ -11,7 +11,7 @@ bool GPIOpin::set(std::fstream& fd, size_t value) {
 
 bool GPIOpin::get(std::fstream& fd, size_t& value) {
     fd.seekg(0, std::ios::beg);
-    value << fd;
+    fd >> value;
     return !fd.fail();
 }
 
