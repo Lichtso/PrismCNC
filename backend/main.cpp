@@ -1,25 +1,24 @@
 #include "L6470.h"
 
-const size_t motorMacroSteps = 200,
-             motorMicroSteps = 128,
-             motorSteps = motorMacroSteps*motorMicroSteps;
+const size_t motorCount = 3;
 
 int main(int argc, char** argv) {
-    SPI bus(3);
-
-    L6470* motors[3];
-    for(size_t i = 0; i < sizeof(motors)/sizeof(void*); ++i)
+    SPI bus(motorCount);
+    L6470* motors[motorCount];
+    GPIOpin motorDriversActive(7);
+    motorDriversActive.setMode(1);
+    motorDriversActive.setValue(1);
+    for(size_t i = 0; i < motorCount; ++i)
         motors[i] = new L6470(&bus, i);
 
-    double timeStep = 0.001;
-    for(double a = 0.0; a < 2.0*M_PI; a += 2.0*M_PI*timeStep) {
-        usleep(timeStep*1000000);
-        float speed = 20000, m0 = sin(a)*speed, m1 = cos(a)*speed;
-        motors[0]->run(fabs(m0), (m0 > 0.0));
-        motors[1]->run(fabs(m1), (m1 > 0.0));
+    for(size_t t = 0; t < 1000; ++t) {
+        for(size_t i = 0; i < motorCount; ++i)
+            motors[i]->run(t*20, true);
+        usleep(1000);
     }
-    motors[0]->setIdle(false);
-    motors[1]->setIdle(false);
+
+    for(size_t i = 0; i < motorCount; ++i)
+        motors[i]->setIdle(false);
 
     /*FILE* pipe = popen("frontend/bin/server", "w");
     if(!pipe) {
@@ -32,5 +31,6 @@ int main(int argc, char** argv) {
     }
     pclose(pipe);*/
 
+    motorDriversActive.setValue(0);
     return 0;
 }

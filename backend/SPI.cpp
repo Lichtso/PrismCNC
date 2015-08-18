@@ -1,22 +1,5 @@
-#include <errno.h>
-#include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 #include "SPI.h"
-#define slavePin(index) (lowestPin-slaveCount+(index))
-
-static bool setPin(size_t pin, size_t value, bool mode = false) {
-    const char* key = (mode) ? "mode" : "pin";
-    char buffer[256];
-    sprintf(buffer, "/sys/devices/virtual/misc/gpio/%s/gpio%d", key, pin);
-    int fp = open(buffer, O_RDWR);
-    if(!fp) return false;
-    lseek(fp, 0, SEEK_SET);
-    memset(buffer, 0, 4);
-    sprintf(buffer, "%d", value);
-    if(write(fp, buffer, 4) != 4) return false;
-    close(fp);
-    return true;
-}
 
 SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
     handle = open("/dev/spidev0.0", O_RDWR);
@@ -44,15 +27,18 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
     }
 
     bool success = true;
-    for(size_t i = lowestPin-slaveCount; i < lowestPin; ++i)
-        success &= setPin(i, 1, true);
+    for(size_t i = 0; i < 3; ++i) {
+        GPIOpin pin(busPinIndex+i);
+        success &= pin.setMode(2);
+        bus.push_back(pin);
+    }
 
-    for(size_t i = lowestPin; i < lowestPin+3; ++i)
-        success &= setPin(i, 2, true);
+    for(size_t i = 0; i < slaveCount; ++i) {
+        GPIOpin pin(busPinIndex-slaveCount+i);
+        success &= pin.setMode(1);
+        slaveCS.push_back(pin);
+    }
 
-    success &= setPin(slavePin(-1), 1, true);
-    success &= setPin(slavePin(-1), 1);
-    
     if(!success) {
         printf("SPI setting pin mode failed.\n");
         return;
@@ -60,7 +46,6 @@ SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
 }
 
 SPI::~SPI() {
-    setPin(slavePin(-1), 0);
     if(handle)
         close(handle);
 }
@@ -90,14 +75,14 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
     transfer.pad = 0;*/
 
     for(size_t i = 0; i < slaveCount; ++i)
-        if(!setPin(slavePin(i), 1))
+        if(!slaveCS[i].setValue(1))
             return false;
 
     for(size_t i = 0; i < size; ++i) {
         transfer.tx_buf = transfer.rx_buf = (uint64_t)&buffer[i];
-        if(!setPin(slavePin(slaveIndex), 0) ||
+        if(!slaveCS[slaveIndex].setValue(0) ||
            ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != transfer.len ||
-           !setPin(slavePin(slaveIndex), 1))
+           !slaveCS[slaveIndex].setValue(1))
             return false;
     }
 

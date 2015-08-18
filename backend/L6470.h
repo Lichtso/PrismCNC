@@ -64,6 +64,8 @@ class L6470 {
 
     SPI* bus;
     size_t slaveIndex;
+    const size_t motorSteps = 200,
+                 driverSteps = 128;
 
     L6470(SPI* bus, size_t slaveIndex);
 
@@ -93,4 +95,7 @@ class L6470 {
     bool resetHome();
     bool resetDevice();
     bool resetFlags(uint32_t& status);
+
+    //Info
+    size_t getStepsPerRound() const;
 };

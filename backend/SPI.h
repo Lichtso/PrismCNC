@@ -1,14 +1,10 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
+#include "GPIOpin.h"
 
 class SPI {
-    static const size_t lowestPin = 11;
+    static const size_t busPinIndex = 11;
     int handle;
     public:
-    size_t slaveCount;
+    std::vector<GPIOpin> bus, slaveCS;
     SPI(size_t slaveCount);
     ~SPI();
     uint32_t getMaxFrequency();
