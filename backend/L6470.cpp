@@ -12,6 +12,8 @@ L6470::L6470(SPI* _bus, size_t _slaveIndex)
     setParam(L6470::ParamName::FS_SPD, 39);
     setParam(L6470::ParamName::OCD_TH, 0); // 8
     setParam(L6470::ParamName::STALL_TH, 0); // 64
+    motors[i]->getParam(L6470::ParamName::MAX_SPEED, value);
+    printf("MAX_SPEED %d %d\n", slaveIndex, value);
 }
 
 bool L6470::set(uint8_t len, uint8_t key, uint32_t value) {

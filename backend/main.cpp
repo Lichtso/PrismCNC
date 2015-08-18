@@ -9,7 +9,6 @@ int main(int argc, char** argv) {
     motorDriversActive.setIndex(7);
     motorDriversActive.setMode(1);
     motorDriversActive.setValue(1);
-    sleep(1);
 
     for(size_t i = 0; i < motorCount; ++i)
         motors[i] = new L6470(&bus, i);
@@ -20,7 +19,7 @@ int main(int argc, char** argv) {
             uint32_t value;
             motors[i]->getParam(L6470::ParamName::ABS_POS, value);
             printf("%d %d", i, value);
-            motors[i]->getParam(L6470::ParamName::SPEED, value);
+            motors[i]->getParam(L6470::ParamName::MAX_SPEED, value);
             printf(" %d\n", value);
         }
         usleep(1000);
