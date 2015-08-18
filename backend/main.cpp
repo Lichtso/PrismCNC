@@ -14,9 +14,9 @@ int main(int argc, char** argv) {
     double timeStep = 0.001;
     for(double a = 0.0; a < 2.0*M_PI; a += 2.0*M_PI*timeStep) {
         usleep(timeStep*1000000);
-        float speed = 1000, m0 = sin(a)*speed, m1 = cos(a)*speed;
-        motors[0]->run(abs(m0), (m0 > 0.0));
-        motors[1]->run(abs(m1), (m1 > 0.0));
+        float speed = 20000, m0 = sin(a)*speed, m1 = cos(a)*speed;
+        motors[0]->run(fabs(m0), (m0 > 0.0));
+        motors[1]->run(fabs(m1), (m1 > 0.0));
     }
     motors[0]->setIdle(false);
     motors[1]->setIdle(false);
