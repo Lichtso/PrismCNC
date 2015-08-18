@@ -15,6 +15,7 @@ bool GPIOpin::get(int fd, size_t& value) const {
     size_t length = lseek(fd, 0, SEEK_CUR);
     lseek(fd, 0, SEEK_SET);
     char buffer[length];
+    printf("GPIOpin::get length %d\n", length);
     if(read(fd, buffer, length) != length) return false;
     sscanf(buffer, "%d", &value);
     return true;
