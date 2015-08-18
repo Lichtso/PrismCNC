@@ -13,15 +13,21 @@ int main(int argc, char** argv) {
     for(size_t i = 0; i < motorCount; ++i)
         motors[i] = new L6470(&bus, i);
 
-    /*for(size_t t = 0; t < 1000; ++t) {
-        for(size_t i = 0; i < motorCount; ++i)
+    for(size_t t = 0; t < 1000; ++t) {
+        for(size_t i = 0; i < motorCount; ++i) {
             motors[i]->run(t*20, true);
+            uint32_t value;
+            motors[i]->getParam(ABS_POS, value);
+            printf("%d %d", i, value);
+            motors[i]->getParam(SPEED, value);
+            printf(" %d\n", value);
+        }
         usleep(1000);
-    }*/
+    }
 
-    for(size_t i = 0; i < motorCount; ++i)
+    /*for(size_t i = 0; i < motorCount; ++i)
         motors[i]->move(motors[i]->getStepsPerRound(), true);
-    usleep(900000);
+    usleep(900000);*/
 
     for(size_t i = 0; i < motorCount; ++i)
         motors[i]->setIdle(false);

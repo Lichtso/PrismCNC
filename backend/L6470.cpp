@@ -5,14 +5,13 @@ const size_t motorSteps = 200,
 
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
     :bus(_bus), slaveIndex(_slaveIndex) {
-    /*setParam(L6470::ParamName::ACC, 138);
+    setParam(L6470::ParamName::ACC, 138);
     setParam(L6470::ParamName::DEC, 138);
     setParam(L6470::ParamName::MIN_SPEED, 0);
     setParam(L6470::ParamName::MAX_SPEED, 55); // 65
     setParam(L6470::ParamName::FS_SPD, 39);
     setParam(L6470::ParamName::OCD_TH, 0); // 8
     setParam(L6470::ParamName::STALL_TH, 0); // 64
-    */
 }
 
 bool L6470::set(uint8_t len, uint8_t key, uint32_t value) {
