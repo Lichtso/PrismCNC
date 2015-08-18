@@ -5,7 +5,7 @@ void GPIOpin::set(FILE* fd, size_t value) {
     memset(buffer, 0, 4);
     sprintf(buffer, "%d", value);
     fseek(fd, 0, SEEK_SET);
-    fwrite(fd, 1, 4, buffer);
+    fwrite(buffer, 1, 4, fd);
     fflush(fd);
 }
 
@@ -43,7 +43,6 @@ size_t GPIOpin::getIndex() const {
 }
 
 void GPIOpin::setMode(size_t value) {
-    printf("GPIOpin::setMode %d %d\n", index, value);
     set(mode, value);
 }
 
@@ -52,7 +51,6 @@ size_t GPIOpin::getMode() {
 }
 
 void GPIOpin::setValue(size_t value) {
-    printf("GPIOpin::setValue %d %d\n", index, value);
     set(pin, value);
 }
 

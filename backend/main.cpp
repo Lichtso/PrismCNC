@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
     motorDriversActive.setIndex(7);
     motorDriversActive.setMode(1);
     motorDriversActive.setValue(1);
+    sleep(1);
 
     for(size_t i = 0; i < motorCount; ++i)
         motors[i] = new L6470(&bus, i);
