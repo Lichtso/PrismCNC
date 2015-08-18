@@ -1,14 +1,15 @@
 #include "GPIOpin.h"
 
-bool GPIOpin::set(std::fstream& fd, size_t value) const {
+bool GPIOpin::set(std::fstream& fd, size_t value) {
     char buffer[4];
     memset(buffer, 0, 4);
     sprintf(buffer, "%d", value);
     fd.seekg(0, std::ios::beg);
-    return fd.write(buffer, 4) == 4 && !fd.fail();
+    fd.write(buffer, 4);
+    return !fd.fail();
 }
 
-bool GPIOpin::get(std::fstream& fd, size_t& value) const {
+bool GPIOpin::get(std::fstream& fd, size_t& value) {
     fd.seekg(0, std::ios::beg);
     value << fd;
     return !fd.fail();
@@ -26,20 +27,20 @@ bool GPIOpin::isValid() const {
     return mode.is_open() && pin.is_open();
 }
 
-bool GPIOpin::setMode(size_t value) const {
+bool GPIOpin::setMode(size_t value) {
     printf("SET Pin Mode %d %d\n", index, value);
     return set(mode, value);
 }
 
-bool GPIOpin::setValue(size_t value) const {
+bool GPIOpin::setValue(size_t value) {
     printf("SET Pin Value %d %d\n", index, value);
     return set(pin, value);
 }
 
-bool GPIOpin::getMode(size_t& value) const {
+bool GPIOpin::getMode(size_t& value) {
     return get(mode, value);
 }
 
-bool GPIOpin::getValue(size_t& value) const {
+bool GPIOpin::getValue(size_t& value) {
     return get(pin, value);
 }

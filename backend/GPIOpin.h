@@ -1,4 +1,5 @@
 #include <vector>
+#include <memory>
 #include <fstream>
 #include <iostream>
 #include <math.h>
@@ -12,15 +13,15 @@
 
 class GPIOpin {
     std::fstream mode, pin;
-    bool set(std::fstream& fd, size_t value) const;
-    bool get(std::fstream& fd, size_t& value) const;
+    bool set(std::fstream& fd, size_t value);
+    bool get(std::fstream& fd, size_t& value);
 
     public:
     size_t index;
     GPIOpin(size_t index);
     bool isValid() const;
-    bool setMode(size_t value) const;
-    bool setValue(size_t value) const;
-    bool getMode(size_t& value) const;
-    bool getValue(size_t& value) const;
+    bool setMode(size_t value);
+    bool setValue(size_t value);
+    bool getMode(size_t& value);
+    bool getValue(size_t& value);
 };

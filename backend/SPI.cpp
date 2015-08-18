@@ -27,16 +27,16 @@ SPI::SPI(size_t slaveCount, uint32_t frequency) {
 
     bool success = true;
     for(size_t i = 0; i < 3; ++i) {
-        GPIOpin pin(busPinIndex+i);
-        success &= pin.setMode(2);
-        bus.push_back(pin);
+        bus.push_back(new GPIOpin(busPinIndex+i));
+        GPIOpin* pin = slaveCS[i].get();
+        success &= pin->setMode(2);
     }
 
     for(size_t i = 0; i < slaveCount; ++i) {
-        GPIOpin pin(busPinIndex-slaveCount+i);
-        success &= pin.setMode(1);
-        success &= pin.setValue(1);
-        slaveCS.push_back(pin);
+        slaveCS.push_back(new GPIOpin(busPinIndex-slaveCount+i));
+        GPIOpin* pin = slaveCS[i].get();
+        success &= pin->setMode(1);
+        success &= pin->setValue(1);
     }
 
     if(!success) {
@@ -74,14 +74,14 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) const {
     transfer.pad = 0;*/
 
     /*for(size_t i = 0; i < slaveCS.size(); ++i)
-        if(!slaveCS[i].setValue(1))
+        if(!slaveCS[i].get()->setValue(1))
             return false;*/
 
     for(size_t i = 0; i < size; ++i) {
         transfer.tx_buf = transfer.rx_buf = (uint64_t)&buffer[i];
-        if(!slaveCS[slaveIndex].setValue(0) ||
+        if(!slaveCS[slaveIndex].get()->setValue(0) ||
            ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != transfer.len ||
-           !slaveCS[slaveIndex].setValue(1))
+           !slaveCS[slaveIndex].get()->setValue(1))
             return false;
     }
 
