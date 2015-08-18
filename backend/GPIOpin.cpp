@@ -12,7 +12,7 @@ void GPIOpin::set(FILE* fd, size_t value) {
 size_t GPIOpin::get(FILE* fd) {
     size_t value;
     fseek(fd, 0, SEEK_SET);
-    fscanf(fd, "%d", &value);
+    if(fscanf(fd, "%d", &value) == 0) return -1;
     return value;
 }
 
@@ -33,9 +33,9 @@ void GPIOpin::setIndex(size_t _index) {
     index = _index;
     char buffer[256];
     sprintf(buffer, "/sys/devices/virtual/misc/gpio/mode/gpio%d", index);
-    mode = fopen(buffer);
+    mode = fopen(buffer, "r+");
     sprintf(buffer, "/sys/devices/virtual/misc/gpio/pin/gpio%d", index);
-    pin = fopen(buffer);
+    pin = fopen(buffer, "r+");
 }
 
 size_t GPIOpin::getIndex() const {
@@ -44,7 +44,7 @@ size_t GPIOpin::getIndex() const {
 
 void GPIOpin::setMode(size_t value) {
     printf("GPIOpin::setMode %d %d\n", index, value);
-    return set(mode, value);
+    set(mode, value);
 }
 
 size_t GPIOpin::getMode() {
@@ -53,7 +53,7 @@ size_t GPIOpin::getMode() {
 
 void GPIOpin::setValue(size_t value) {
     printf("GPIOpin::setValue %d %d\n", index, value);
-    return set(pin, value);
+    set(pin, value);
 }
 
 size_t GPIOpin::getValue() {

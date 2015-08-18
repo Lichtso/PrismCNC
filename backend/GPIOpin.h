@@ -10,7 +10,7 @@
 class GPIOpin {
     size_t index;
     FILE *mode, *pin;
-    bool set(FILE* fd, size_t value);
+    void set(FILE* fd, size_t value);
     size_t get(FILE* fd);
 
     public:
