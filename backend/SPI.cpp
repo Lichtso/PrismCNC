@@ -35,7 +35,7 @@ SPI::SPI(size_t slaveCount, uint32_t frequency) {
     for(size_t i = 0; i < slaveCount; ++i) {
         GPIOpin pin(busPinIndex-slaveCount+i);
         success &= pin.setMode(1);
-        success &= pin.setValue(1)
+        success &= pin.setValue(1);
         slaveCS.push_back(pin);
     }
 

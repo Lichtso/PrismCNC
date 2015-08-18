@@ -8,6 +8,10 @@ int main(int argc, char** argv) {
     GPIOpin motorDriversActive(7);
     motorDriversActive.setMode(1);
     motorDriversActive.setValue(1);
+
+    size_t value;
+    printf("GET Pin Value 7 %d %d\n", motorDriversActive.getValue(value), value);
+
     for(size_t i = 0; i < motorCount; ++i)
         motors[i] = new L6470(&bus, i);
 
