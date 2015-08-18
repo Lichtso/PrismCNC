@@ -15,16 +15,22 @@ bool GPIOpin::get(std::fstream& fd, size_t& value) {
     return !fd.fail();
 }
 
-GPIOpin::GPIOpin(size_t _index) :index(_index) {
+bool GPIOpin::isValid() const {
+    return !mode.fail() && !pin.fail();
+}
+
+bool GPIOpin::setIndex(size_t _index) {
+    index = _index;
     char buffer[256];
     sprintf(buffer, "/sys/devices/virtual/misc/gpio/mode/gpio%d", index);
     mode.open(buffer);
     sprintf(buffer, "/sys/devices/virtual/misc/gpio/pin/gpio%d", index);
     pin.open(buffer);
+    return mode.is_open() && pin.is_open();
 }
 
-bool GPIOpin::isValid() const {
-    return mode.is_open() && pin.is_open();
+size_t GPIOpin::getIndex() const {
+    return index;
 }
 
 bool GPIOpin::setMode(size_t value) {

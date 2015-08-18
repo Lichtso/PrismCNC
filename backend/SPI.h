@@ -3,7 +3,8 @@
 class SPI {
     static const size_t busPinIndex = 11;
     int handle;
-    std::vector<std::unique_ptr<GPIOpin>> bus, slaveCS;
+    size_t slaveCount;
+    GPIOpin *bus, *slaveCS;
     public:
     SPI(size_t slaveCount, uint32_t frequency);
     ~SPI();
