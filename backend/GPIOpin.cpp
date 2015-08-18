@@ -2,6 +2,7 @@
 
 bool GPIOpin::set(int fd, size_t value) {
     if(!fd) return false;
+    char buffer[4];
     lseek(fd, 0, SEEK_SET);
     memset(buffer, 0, 4);
     sprintf(buffer, "%d", value);
@@ -10,6 +11,7 @@ bool GPIOpin::set(int fd, size_t value) {
 
 bool GPIOpin::get(int fd, size_t& value) {
     if(!fd) return false;
+    char buffer[4];
     lseek(fd, 0, SEEK_SET);
     if(read(fd, buffer, 4) != 4) return false;
     sscanf(buffer, "%d", &value);
@@ -29,18 +31,22 @@ GPIOpin::~GPIOpin() {
     if(pin) close(pin);
 }
 
-bool GPIOpin::setMode(size_t value) {
+bool GPIOpin::isValid() const {
+    return mode && pin;
+}
+
+bool GPIOpin::setMode(size_t value) const {
     return set(mode, value);
 }
 
-bool GPIOpin::setValue(bool value) {
+bool GPIOpin::setValue(size_t value) const {
     return set(pin, value);
 }
 
-bool GPIOpin::getMode(size_t& value) {
+bool GPIOpin::getMode(size_t& value) const {
     return get(mode, value);
 }
 
-bool GPIOpin::getValue(bool& value) {
+bool GPIOpin::getValue(size_t& value) const {
     return get(pin, value);
 }

@@ -64,8 +64,6 @@ class L6470 {
 
     SPI* bus;
     size_t slaveIndex;
-    const size_t motorSteps = 200,
-                 driverSteps = 128;
 
     L6470(SPI* bus, size_t slaveIndex);
 

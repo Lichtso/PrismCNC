@@ -1,7 +1,7 @@
 #include <linux/spi/spidev.h>
 #include "SPI.h"
 
-SPI::SPI(size_t _slaveCount) :slaveCount(_slaveCount) {
+SPI::SPI(size_t slaveCount) {
     handle = open("/dev/spidev0.0", O_RDWR);
     if(!handle) {
         printf("SPI opening device failed: %s\n", strerror(errno));
@@ -50,20 +50,19 @@ SPI::~SPI() {
         close(handle);
 }
 
-uint32_t SPI::getMaxFrequency() {
-    if(!handle)
-        return 0;
-    printf("Handle is open %p:%d.\n", this, handle);
+size_t SPI::getSlaveCount() const {
+    return slaveCS.size();
+}
+
+uint32_t SPI::getMaxFrequency() const {
+    if(!handle) return 0;
     uint32_t value = 0;
     ioctl(handle, SPI_IOC_RD_MAX_SPEED_HZ, &value);
     return value;
 }
 
-bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) {
-    if(!handle) {
-        printf("Handle is NOT open %p:%d.\n", this, handle);
-        return false;
-    }
+bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) const {
+    if(!handle) return false;
 
     struct spi_ioc_transfer transfer;
     memset(&transfer, 0, sizeof(transfer));

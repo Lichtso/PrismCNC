@@ -1,5 +1,8 @@
 #include "L6470.h"
 
+const size_t motorSteps = 200,
+             driverSteps = 128;
+
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
     :bus(_bus), slaveIndex(_slaveIndex) {
     setParam(L6470::ParamName::ACC, 138);

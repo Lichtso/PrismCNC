@@ -1,3 +1,4 @@
+#include <vector>
 #include <math.h>
 #include <errno.h>
 #include <stdio.h>
@@ -14,10 +15,11 @@ class GPIOpin {
 
     public:
     size_t index;
-    GPIOpin(size_t _index) :index(_index);
+    GPIOpin(size_t index);
     ~GPIOpin();
-    bool setMode(size_t value);
-    bool setValue(bool value);
-    bool getMode(size_t& value);
-    bool getValue(bool& value);
+    bool isValid() const;
+    bool setMode(size_t value) const;
+    bool setValue(size_t value) const;
+    bool getMode(size_t& value) const;
+    bool getValue(size_t& value) const;
 };
