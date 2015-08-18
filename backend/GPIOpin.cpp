@@ -1,41 +1,29 @@
 #include "GPIOpin.h"
 
-bool GPIOpin::set(int fd, size_t value) const {
-    if(!fd) return false;
+bool GPIOpin::set(std::fstream& fd, size_t value) const {
     char buffer[4];
     memset(buffer, 0, 4);
     sprintf(buffer, "%d", value);
-    lseek(fd, 0, SEEK_SET);
-    return write(fd, buffer, 4) == 4;
+    fd.seekg(0, std::ios::beg);
+    return fd.write(buffer, 4) == 4 && !fd.fail();
 }
 
-bool GPIOpin::get(int fd, size_t& value) const {
-    if(!fd) return false;
-    lseek(fd, 0, SEEK_END);
-    size_t length = lseek(fd, 0, SEEK_CUR);
-    lseek(fd, 0, SEEK_SET);
-    char buffer[length];
-    printf("GPIOpin::get length %d\n", length);
-    if(read(fd, buffer, length) != length) return false;
-    sscanf(buffer, "%d", &value);
-    return true;
+bool GPIOpin::get(std::fstream& fd, size_t& value) const {
+    fd.seekg(0, std::ios::beg);
+    value << fd;
+    return !fd.fail();
 }
 
 GPIOpin::GPIOpin(size_t _index) :index(_index) {
     char buffer[256];
     sprintf(buffer, "/sys/devices/virtual/misc/gpio/mode/gpio%d", index);
-    mode = open(buffer, O_RDWR);
+    mode.open(buffer);
     sprintf(buffer, "/sys/devices/virtual/misc/gpio/pin/gpio%d", index);
-    pin = open(buffer, O_RDWR);
-}
-
-GPIOpin::~GPIOpin() {
-    if(mode) close(mode);
-    if(pin) close(pin);
+    pin.open(buffer);
 }
 
 bool GPIOpin::isValid() const {
-    return mode && pin;
+    return mode.is_open() && pin.is_open();
 }
 
 bool GPIOpin::setMode(size_t value) const {
