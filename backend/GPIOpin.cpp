@@ -34,12 +34,10 @@ size_t GPIOpin::getIndex() const {
 }
 
 bool GPIOpin::setMode(size_t value) {
-    printf("SET Pin Mode %d %d\n", index, value);
     return set(mode, value);
 }
 
 bool GPIOpin::setValue(size_t value) {
-    printf("SET Pin Value %d %d\n", index, value);
     return set(pin, value);
 }
 

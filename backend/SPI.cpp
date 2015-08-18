@@ -80,5 +80,6 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) const {
             return false;
     }
 
+    printf("SPI::transfer\n");
     return true;
 }

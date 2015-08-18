@@ -10,9 +10,6 @@ int main(int argc, char** argv) {
     motorDriversActive.setMode(1);
     motorDriversActive.setValue(1);
 
-    size_t value;
-    printf("GET Pin Value 7 %d %d\n", motorDriversActive.getValue(value), value);
-
     for(size_t i = 0; i < motorCount; ++i)
         motors[i] = new L6470(&bus, i);
 
@@ -23,7 +20,7 @@ int main(int argc, char** argv) {
     }*/
 
     for(size_t i = 0; i < motorCount; ++i)
-        motors[i]->run(1000, true);
+        motors[i]->move(motors[i]->getStepsPerRound(), true);
     usleep(900000);
 
     for(size_t i = 0; i < motorCount; ++i)
