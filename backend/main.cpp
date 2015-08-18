@@ -3,7 +3,7 @@
 const size_t motorCount = 3;
 
 int main(int argc, char** argv) {
-    SPI bus(motorCount);
+    SPI bus(motorCount, 5000000);
     L6470* motors[motorCount];
     GPIOpin motorDriversActive(7);
     motorDriversActive.setMode(1);

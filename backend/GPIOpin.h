@@ -10,8 +10,8 @@
 
 class GPIOpin {
     int mode, pin;
-    bool set(int fd, size_t value);
-    bool get(int fd, size_t& value);
+    bool set(int fd, size_t value) const;
+    bool get(int fd, size_t& value) const;
 
     public:
     size_t index;

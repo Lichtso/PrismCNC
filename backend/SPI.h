@@ -5,7 +5,7 @@ class SPI {
     int handle;
     std::vector<GPIOpin> bus, slaveCS;
     public:
-    SPI(size_t slaveCount);
+    SPI(size_t slaveCount, uint32_t frequency);
     ~SPI();
     size_t getSlaveCount() const;
     uint32_t getMaxFrequency() const;

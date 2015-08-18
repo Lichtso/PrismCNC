@@ -1,6 +1,6 @@
 #include "GPIOpin.h"
 
-bool GPIOpin::set(int fd, size_t value) {
+bool GPIOpin::set(int fd, size_t value) const {
     if(!fd) return false;
     char buffer[4];
     lseek(fd, 0, SEEK_SET);
@@ -9,7 +9,7 @@ bool GPIOpin::set(int fd, size_t value) {
     return write(fd, buffer, 4) == 4;
 }
 
-bool GPIOpin::get(int fd, size_t& value) {
+bool GPIOpin::get(int fd, size_t& value) const {
     if(!fd) return false;
     char buffer[4];
     lseek(fd, 0, SEEK_SET);

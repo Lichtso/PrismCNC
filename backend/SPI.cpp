@@ -1,7 +1,7 @@
 #include <linux/spi/spidev.h>
 #include "SPI.h"
 
-SPI::SPI(size_t slaveCount) {
+SPI::SPI(size_t slaveCount, uint32_t frequency) {
     handle = open("/dev/spidev0.0", O_RDWR);
     if(!handle) {
         printf("SPI opening device failed: %s\n", strerror(errno));
@@ -20,7 +20,6 @@ SPI::SPI(size_t slaveCount) {
         return;
     }
 
-    uint32_t frequency = 5000000;
     if(ioctl(handle, SPI_IOC_WR_MAX_SPEED_HZ, &frequency) < 0) {
         printf("SPI changing frequency failed: %s\n", strerror(errno));
         return;
@@ -36,6 +35,7 @@ SPI::SPI(size_t slaveCount) {
     for(size_t i = 0; i < slaveCount; ++i) {
         GPIOpin pin(busPinIndex-slaveCount+i);
         success &= pin.setMode(1);
+        success &= pin.setValue(1)
         slaveCS.push_back(pin);
     }
 
@@ -73,9 +73,9 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) const {
     transfer.cs_change = 0;
     transfer.pad = 0;*/
 
-    for(size_t i = 0; i < slaveCount; ++i)
+    /*for(size_t i = 0; i < slaveCS.size(); ++i)
         if(!slaveCS[i].setValue(1))
-            return false;
+            return false;*/
 
     for(size_t i = 0; i < size; ++i) {
         transfer.tx_buf = transfer.rx_buf = (uint64_t)&buffer[i];
