@@ -17,9 +17,9 @@ int main(int argc, char** argv) {
         for(size_t i = 0; i < motorCount; ++i) {
             motors[i]->run(t*20, true);
             uint32_t value;
-            motors[i]->getParam(ABS_POS, value);
+            motors[i]->getParam(L6470::ParamName::ABS_POS, value);
             printf("%d %d", i, value);
-            motors[i]->getParam(SPEED, value);
+            motors[i]->getParam(L6470::ParamName::SPEED, value);
             printf(" %d\n", value);
         }
         usleep(1000);

@@ -19,23 +19,18 @@ SPI::SPI(size_t _slaveCount, uint32_t frequency) :slaveCount(_slaveCount) {
     if(ioctl(handle, SPI_IOC_WR_MAX_SPEED_HZ, &frequency) < 0)
         printf("SPI changing frequency failed: %s\n", strerror(errno));
 
-    bool success = true;
-
     bus = new GPIOpin[3];
     for(size_t i = 0; i < 3; ++i) {
-        success &= bus[i].setIndex(busPinIndex+i);
-        success &= bus[i].setMode(2);
+        bus[i].setIndex(busPinIndex+i);
+        bus[i].setMode(2);
     }
 
     slaveCS = new GPIOpin[slaveCount];
     for(size_t i = 0; i < slaveCount; ++i) {
-        success &= slaveCS[i].setIndex(busPinIndex-slaveCount+i);
-        success &= slaveCS[i].setMode(1);
-        success &= slaveCS[i].setValue(1);
+        slaveCS[i].setIndex(busPinIndex-slaveCount+i);
+        slaveCS[i].setMode(1);
+        slaveCS[i].setValue(1);
     }
-
-    if(!success)
-        printf("Initializing SPI pins failed.\n");
 }
 
 SPI::~SPI() {
@@ -69,15 +64,14 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) const {
     transfer.pad = 0;*/
 
     /*for(size_t i = 0; i < slaveCount; ++i)
-        if(!slaveCS[i].setValue(1))
-            return false;*/
+        slaveCS[i].setValue(1);*/
 
     for(size_t i = 0; i < size; ++i) {
+        slaveCS[slaveIndex].setValue(0);
         transfer.tx_buf = transfer.rx_buf = (uint64_t)&buffer[i];
-        if(!slaveCS[slaveIndex].setValue(0) ||
-           ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != transfer.len ||
-           !slaveCS[slaveIndex].setValue(1))
+        if(ioctl(handle, SPI_IOC_MESSAGE(1), &transfer) != transfer.len)
             return false;
+        slaveCS[slaveIndex].setValue(1);
     }
 
     return true;

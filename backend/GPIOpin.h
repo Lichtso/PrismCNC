@@ -1,5 +1,3 @@
-#include <fstream>
-#include <iostream>
 #include <math.h>
 #include <errno.h>
 #include <stdio.h>
@@ -11,16 +9,18 @@
 
 class GPIOpin {
     size_t index;
-    std::fstream mode, pin;
-    bool set(std::fstream& fd, size_t value);
-    bool get(std::fstream& fd, size_t& value);
+    FILE *mode, *pin;
+    bool set(FILE* fd, size_t value);
+    size_t get(FILE* fd);
 
     public:
+    GPIOpin();
+    ~GPIOpin();
     bool isValid() const;
-    bool setIndex(size_t index);
+    void setIndex(size_t index);
     size_t getIndex() const;
-    bool setMode(size_t value);
-    bool setValue(size_t value);
-    bool getMode(size_t& value);
-    bool getValue(size_t& value);
+    void setMode(size_t value);
+    size_t getMode();
+    void setValue(size_t value);
+    size_t getValue();
 };
