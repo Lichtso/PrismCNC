@@ -25,20 +25,23 @@ int main(int argc, char** argv) {
         point.coord[0] = sin(angle)*radius;
         point.coord[1] = cos(angle)*radius;
         point.coord[2] = 0.0;
-        printf("%d %f %f\n", p, point.coords[0], point.coords[1]);
+        printf("%d %f %f\n", p, point.coord[0], point.coord[1]);
     }
 
-    for(size_t p = 0; p < 1000; ++p) {
+    bool running = true;
+    for(size_t p = 0; running && p < 1000; ++p) {
         for(size_t i = 0; i < motorCount; ++i) {
             motors[i]->run(p*20, true);
             uint32_t value;
             motors[i]->resetFlags(value);
             if(value & (uint32_t)L6470::DriverStatus::SW_EVN) {
                 printf("Stop signal\n");
+                running = false;
                 break;
             }
             if(value & L6470::DriverErrorFlags) {
                 printf("Error signal\n");
+                running = false;
                 break;
             }
 
