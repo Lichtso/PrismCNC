@@ -62,6 +62,31 @@ class L6470 {
         STATUS = 0x19
     };
 
+    enum class DriverStatus {
+        HiZ = 1<<0,
+        BUSY = 1<<1,
+        SW_F = 1<<2,
+        SW_EVN = 1<<3,
+        DIR = 1<<4,
+        MOT_STATUS = 3<<5,
+        NOTPERF_CMD = 1<<7,
+        WRONG_CMD = 1<<8,
+        UVLO = 1<<9,
+        TH_WRN = 1<<10,
+        TH_SD = 1<<11,
+        OCD = 1<<12,
+        STEP_LOSS_A = 1<<13,
+        STEP_LOSS_B = 1<<14,
+        SCK_MOD = 1<<15
+    };
+
+    enum class MotorStatus {
+        Stopped = 0,
+        Acceleration = 1,
+        Deceleration = 2,
+        ConstantSpeed = 3
+    };
+
     SPI* bus;
     size_t slaveIndex;
 
