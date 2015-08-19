@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
                 running = false;
                 break;
             }
-            if(value & L6470::DriverErrorFlags) {
+            if(L6470::isErrorFlagSet(value)) {
                 printf("Error signal\n");
                 running = false;
                 break;

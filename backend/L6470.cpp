@@ -101,6 +101,17 @@ bool L6470::resetFlags(uint32_t& status) {
     return get(2, 0xD0, status);
 }
 
+static bool L6470::isErrorFlagSet(uint32_t value) {
+    const uint32_t DriverErrorFlags =
+        (uint32_t)DriverStatus::UVLO |
+        (uint32_t)DriverStatus::TH_WRN |
+        (uint32_t)DriverStatus::TH_SD |
+        (uint32_t)DriverStatus::OCD |
+        (uint32_t)DriverStatus::STEP_LOSS_A |
+        (uint32_t)DriverStatus::STEP_LOSS_B;
+    return (value & DriverErrorFlags) != DriverErrorFlags;
+}
+
 size_t L6470::getStepsPerRound() const {
     return motorSteps*driverSteps;
 }
