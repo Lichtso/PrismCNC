@@ -22,27 +22,22 @@ int main(int argc, char** argv) {
     for(size_t p = 0; p < pCount; ++p) {
         float angle = (float)p/pCount*M_PI*2.0, radius = 10.0;
         ControlPoint& point = points[p];
-        point.coords[0] = sin(angle)*radius;
-        point.coords[1] = cos(angle)*radius;
-        point.coords[2] = 0.0;
+        point.coord[0] = sin(angle)*radius;
+        point.coord[1] = cos(angle)*radius;
+        point.coord[2] = 0.0;
         printf("%d %f %f\n", p, point.coords[0], point.coords[1]);
     }
 
-    for(size_t p = 0; p < pCount; ++p) {
+    for(size_t p = 0; p < 1000; ++p) {
         for(size_t i = 0; i < motorCount; ++i) {
-            motors[i]->run(t*20, true);
+            motors[i]->run(p*20, true);
             uint32_t value;
             motors[i]->resetFlags(value);
-            if(value & L6470::DriverStatus::SW_EVN) {
+            if(value & (uint32_t)L6470::DriverStatus::SW_EVN) {
                 printf("Stop signal\n");
                 break;
             }
-            if(value & L6470::DriverStatus::UVLO ||
-               value & L6470::DriverStatus::TH_WRN ||
-               value & L6470::DriverStatus::TH_SD ||
-               value & L6470::DriverStatus::OCD ||
-               value & L6470::DriverStatus::STEP_LOSS_A ||
-               value & L6470::DriverStatus::STEP_LOSS_B) {
+            if(value & L6470::DriverErrorFlags) {
                 printf("Error signal\n");
                 break;
             }

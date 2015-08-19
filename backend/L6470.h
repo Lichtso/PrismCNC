@@ -80,6 +80,14 @@ class L6470 {
         SCK_MOD = 1<<15
     };
 
+    static const uint32_t DriverErrorFlags =
+        (uint32_t)DriverStatus::UVLO |
+        (uint32_t)DriverStatus::TH_WRN |
+        (uint32_t)DriverStatus::TH_SD |
+        (uint32_t)DriverStatus::OCD |
+        (uint32_t)DriverStatus::STEP_LOSS_A |
+        (uint32_t)DriverStatus::STEP_LOSS_B;
+
     enum class MotorStatus {
         Stopped = 0,
         Acceleration = 1,
