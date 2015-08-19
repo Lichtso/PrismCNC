@@ -25,8 +25,10 @@ int main(int argc, char** argv) {
         point.coord[0] = sin(angle)*radius;
         point.coord[1] = cos(angle)*radius;
         point.coord[2] = 0.0;
-        printf("%d %f %f\n", p, point.coord[0], point.coord[1]);
     }
+
+    for(size_t i = 0; i < motorCount; ++i)
+        motors[i]->stop(false);
 
     bool running = true;
     for(size_t p = 0; running && p < 1000; ++p) {
@@ -47,7 +49,7 @@ int main(int argc, char** argv) {
 
             motors[i]->getParam(L6470::ParamName::ABS_POS, value);
             printf("%d %d", i, value);
-            motors[i]->getParam(L6470::ParamName::MAX_SPEED, value);
+            motors[i]->getParam(L6470::ParamName::SPEED, value);
             printf(" %d\n", value);
         }
         usleep(1000);
