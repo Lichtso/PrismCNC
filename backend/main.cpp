@@ -27,14 +27,14 @@ int main(int argc, char** argv) {
         point.coord[2] = 0.0;
     }
 
+    uint32_t value;
     for(size_t i = 0; i < motorCount; ++i)
-        motors[i]->stop(false);
+        motors[i]->resetFlags(value);
 
     bool running = true;
     for(size_t p = 0; running && p < 1000; ++p) {
         for(size_t i = 0; i < motorCount; ++i) {
             motors[i]->run(p*20, true);
-            uint32_t value;
             motors[i]->resetFlags(value);
             if(value & (uint32_t)L6470::DriverStatus::SW_EVN) {
                 printf("Stop signal\n");
