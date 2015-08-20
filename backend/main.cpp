@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
         std::cout << "Lost connection of " << socket->hostRemote << ":" << socket->portRemote << std::endl;
     };
 
-    socketManager.onReceiveMsgPack = [](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> socket, std::unique_ptr<MsgPack::Element> element) {
+    socketManager.onReceiveMsgPack = [&](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> socket, std::unique_ptr<MsgPack::Element> element) {
         std::cout << "Received data from " << socket->hostRemote << ":" << socket->portRemote << ": " << *element << std::endl;
         auto mapElement = dynamic_cast<MsgPack::Map*>(element.get());
         if(!mapElement) return;
@@ -75,17 +75,17 @@ int main(int argc, char** argv) {
             if(iter == map.end()) return;
             auto dirElement = dynamic_cast<MsgPack::Primitive*>(iter->second);
             if(!dirElement || dirElement->getType() == MsgPack::NIL) return;
-            command = std::bind(&L6470::run, std::placeholders::_1, speedElement->template getValue<uint32_t>(), dir->getValue());
+            command = std::bind(&L6470::run, std::placeholders::_1, speedElement->getValue<uint32_t>(), dirElement->getValue());
         }else if(type == "stop")
             command = std::bind(&L6470::stop, std::placeholders::_1, false);
         else if(type == "idle")
             command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
         else return;
-        auto iter = map.find("type");
+        iter = map.find("type");
         if(iter != map.end()) {
             auto motorElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!motorElement) return;
-            size_t motorIndex = motorElement->template getValue<size_t>();
+            size_t motorIndex = motorElement->getValue<size_t>();
             command(motors[motorIndex]);
         }else for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
             command(motors[motorIndex]);
@@ -103,14 +103,14 @@ int main(int argc, char** argv) {
                         msgPackSocket << MsgPack::Factory("type");
                         msgPackSocket << MsgPack::Factory("error");
                         msgPackSocket << MsgPack::Factory("motor");
-                        msgPackSocket << MsgPack::Factory(motorIndex);
+                        msgPackSocket << MsgPack::Factory((uint64_t)motorIndex);
                         msgPackSocket << MsgPack::Factory("message");
-                        msgPackSocket << MsgPack::Factory((int)error);
+                        msgPackSocket << MsgPack::Factory((uint64_t)error);
                     }
                     serverRunning = false;
                     break;
                 }
-                motors[i]->updatePosition();
+                motors[motorIndex]->updatePosition();
             }
             socketManager.listen();
         }
