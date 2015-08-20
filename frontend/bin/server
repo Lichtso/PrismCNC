@@ -11,6 +11,13 @@ const express = require('express'),
     server = require('http').Server(app),
     io = require('socket.io')(server),
     stdin = process.openStdin();
+stdin.setRawMode(true);
+
+/*if(typeof stdin.setRawMode == 'function') {
+  stdin.setRawMode(true);
+}else{
+  tty.setRawMode(true);
+}*/
 
 var CNCDeamon = new net.Socket();
 const encodeStream = msgpack.createEncodeStream();
