@@ -30,6 +30,11 @@ const uint8_t ParamSize[] = {
 };
 
 class L6470 {
+    SPI* bus;
+    size_t slaveIndex, motorSteps;
+    int64_t absPos;
+    float mmPerRound;
+
     bool set(uint8_t len, uint8_t key, uint32_t value);
     bool get(uint8_t len, uint8_t key, uint32_t& value);
 
@@ -87,9 +92,6 @@ class L6470 {
         ConstantSpeed = 3
     };
 
-    SPI* bus;
-    size_t slaveIndex;
-
     L6470(SPI* bus, size_t slaveIndex);
 
     //Param register commands
@@ -119,7 +121,8 @@ class L6470 {
     bool resetDevice();
     bool resetFlags(uint32_t& status);
 
-    //Info
-    static bool isErrorFlagSet(uint32_t value);
-    size_t getStepsPerRound() const;
+    //High level
+    const char* getStatus();
+    void updatePosition();
+    float getPositionInMM();
 };

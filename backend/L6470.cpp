@@ -1,10 +1,9 @@
 #include "L6470.h"
 
-const size_t motorSteps = 200,
-             driverSteps = 128;
+const size_t driverSteps = 128;
 
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
-    :bus(_bus), slaveIndex(_slaveIndex) {
+    :bus(_bus), slaveIndex(_slaveIndex), motorSteps(200), mmPerRound(1.0) {
     setParam(L6470::ParamName::ACC, 138);
     setParam(L6470::ParamName::DEC, 138);
     setParam(L6470::ParamName::MIN_SPEED, 0);
@@ -12,6 +11,7 @@ L6470::L6470(SPI* _bus, size_t _slaveIndex)
     setParam(L6470::ParamName::FS_SPD, 39);
     setParam(L6470::ParamName::OCD_TH, 4); // 8
     setParam(L6470::ParamName::STALL_TH, 50); // 64
+    getStatus();
 }
 
 bool L6470::set(uint8_t len, uint8_t key, uint32_t value) {
@@ -101,17 +101,54 @@ bool L6470::resetFlags(uint32_t& status) {
     return get(2, 0xD0, status);
 }
 
-bool L6470::isErrorFlagSet(uint32_t value) {
-    const uint32_t DriverErrorFlags =
-        (uint32_t)DriverStatus::UVLO |
-        (uint32_t)DriverStatus::TH_WRN |
-        (uint32_t)DriverStatus::TH_SD |
-        (uint32_t)DriverStatus::OCD |
-        (uint32_t)DriverStatus::STEP_LOSS_A |
-        (uint32_t)DriverStatus::STEP_LOSS_B;
-    return (value & DriverErrorFlags) != DriverErrorFlags;
+const char* L6470::getStatus() {
+    uint32_t value;
+    if(!motors[i]->resetFlags(value))
+        return "PCI";
+    if(!(value & (uint32_t)L6470::DriverStatus::TH_SD))
+        return "Thermal Shutdown"; // 160°C
+    if(!(value & (uint32_t)L6470::DriverStatus::TH_WRN))
+        return "Thermal Warning"; // 130°C
+    if(!(value & (uint32_t)L6470::DriverStatus::OCD))
+        return "Overcurrent";
+    if(!(value & (uint32_t)L6470::DriverStatus::UVLO))
+        return "Undervoltage Lockout";
+    if(!(value & (uint32_t)L6470::DriverStatus::STEP_LOSS_B) ||
+       !(value & (uint32_t)L6470::DriverStatus::STEP_LOSS_A))
+        return "Step Loss";
+    if(value & (uint32_t)L6470::DriverStatus::SW_EVN)
+        return "Switch";
+    return NULL;
 }
 
-size_t L6470::getStepsPerRound() const {
-    return motorSteps*driverSteps;
+bool L6470::updatePosition() {
+    const int64_t overflowRef = 0x00400000;
+
+    int32_t prevPos = absPos&(overflowRef-1), postPos;
+    if(!getParam(L6470::ParamName::ABS_POS, (uint32_t&)postPos)) return false;
+    bool signPrev = prevPos&(overflowRef>>1), signPost = postPos&(overflowRef>>1);
+    prevPos |= 0xFFE00000*signPrev;
+    postPos |= 0xFFE00000*signPost;
+
+    absPos &= ~(overflowRef-1);
+    int64_t diff = postPos-prevPos;
+    printf("Motor %d diff %lld\n", diff);
+
+    if(abs(diff) > (overflowRef>>2)) {
+        if(signPost) {
+            absPos += overflowRef;
+            printf("Motor %d overflow\n", slaveIndex);
+        }else{
+            absPos -= overflowRef;
+            printf("Motor %d underflow\n", slaveIndex);
+        }
+    }
+    absPos |= postPos;
+    printf("Motor %d pos %lld\n", absPos);
+
+    return true;
+}
+
+float L6470::getPositionInMM() {
+    return (float)absPos/(motorSteps*driverSteps)*mmPerRound;
 }
