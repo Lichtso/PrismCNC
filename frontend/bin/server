@@ -3,12 +3,29 @@
 /* jslint node: true, esnext: true */
 "use strict";
 
-var express = require("express"),
+const express = require('express'),
     path = require('path'),
+    msgpack = require('msgpack-lite'),
+    net = require('net'),
     app = express(),
-    server = require("http").Server(app),
-    io = require("socket.io")(server);
+    server = require('http').Server(app),
+    io = require('socket.io')(server);
 
+var client = new net.Socket();
+client.connect(3823, '10.0.1.7', function() {
+	console.log('Connected');
+
+  const encodeStream = msgpack.createEncodeStream();
+  encodeStream.pipe(client);
+
+  const decodeStream = msgpack.createDecodeStream();
+  client.pipe(decodeStream).on("data", console.warn);
+
+  encodeStream.write({object: true, a: [1, 2, 3,4, 5], b: 77.899, c: "a longer string ....." });
+});
+
+
+/*
 const docroot = path.join(__dirname, '..', 'docroot');
 
 app.use(express.static(docroot));
@@ -22,3 +39,4 @@ io.on("connection", function (socket) {
         console.log(data);
     });
 });
+*/
