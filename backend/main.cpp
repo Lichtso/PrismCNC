@@ -60,22 +60,30 @@ int main(int argc, char** argv) {
         auto mapElement = dynamic_cast<MsgPack::Map*>(element.get());
         if(!mapElement) return;
         auto map = mapElement->getElementsMap();
-        auto typeIter = map.find("type");
-        if(typeIter == map.end()) return;
-        auto typeElement = dynamic_cast<MsgPack::String*>(typeIter.second);
+        auto iter = map.find("type");
+        if(iter == map.end()) return;
+        auto typeElement = dynamic_cast<MsgPack::String*>(iter->second);
         if(!typeElement) return;
         std::string type = typeElement->stdString();
         std::function<bool(L6470*)> command;
-        if(type == "run")
-            command = std::bind(&L6470::run, std::placeholders::_1, speed, dir);
-        else if(type == "stop")
+        if(type == "run") {
+            iter = map.find("speed");
+            if(iter == map.end()) return;
+            auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
+            if(!speedElement) return;
+            iter = map.find("dir");
+            if(iter == map.end()) return;
+            auto dirElement = dynamic_cast<MsgPack::Primitive*>(iter->second);
+            if(!dirElement || dirElement->getType() == MsgPack::NIL) return;
+            command = std::bind(&L6470::run, std::placeholders::_1, speedElement->template getValue<uint32_t>(), dir->getValue());
+        }else if(type == "stop")
             command = std::bind(&L6470::stop, std::placeholders::_1, false);
         else if(type == "idle")
-            command = std::setIdle(&L6470::stop, std::placeholders::_1, false);
+            command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
         else return;
-        auto motorIter = map.find("type");
-        if(motorIter != map.end()) {
-            auto motorElement = dynamic_cast<MsgPack::Number*>(motorIter.second);
+        auto iter = map.find("type");
+        if(iter != map.end()) {
+            auto motorElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!motorElement) return;
             size_t motorIndex = motorElement->template getValue<size_t>();
             command(motors[motorIndex]);
@@ -86,8 +94,8 @@ int main(int argc, char** argv) {
     try {
         serverSocket->initAsTcpServer("*", 3823);
         for(bool serverRunning = true; serverRunning; ) {
-            for(size_t i = 0; i < motorCount; ++i) {
-                const char* error = motors[i]->getStatus();
+            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+                const char* error = motors[motorIndex]->getStatus();
                 if(error) {
                     for(auto& iter : serverSocket.get()->clients) {
                         netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
@@ -95,9 +103,9 @@ int main(int argc, char** argv) {
                         msgPackSocket << MsgPack::Factory("type");
                         msgPackSocket << MsgPack::Factory("error");
                         msgPackSocket << MsgPack::Factory("motor");
-                        msgPackSocket << MsgPack::Factory(i);
+                        msgPackSocket << MsgPack::Factory(motorIndex);
                         msgPackSocket << MsgPack::Factory("message");
-                        msgPackSocket << MsgPack::Factory(error);
+                        msgPackSocket << MsgPack::Factory((int)error);
                     }
                     serverRunning = false;
                     break;
