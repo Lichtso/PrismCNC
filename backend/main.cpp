@@ -1,4 +1,5 @@
 #include "L6470.h"
+//#include <functional>
 #include <netLink/netLink.h>
 
 const size_t motorCount = 3;
@@ -14,8 +15,8 @@ int main(int argc, char** argv) {
     motorDriversActive.setMode(1);
     motorDriversActive.setValue(1);
     L6470* motors[motorCount];
-    for(size_t i = 0; i < motorCount; ++i)
-        motors[i] = new L6470(&bus, i);
+    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+        motors[motorIndex] = new L6470(&bus, motorIndex);
 
     /*size_t pCount = 128;
     ControlPoint points[pCount];
@@ -30,9 +31,9 @@ int main(int argc, char** argv) {
     bool running = true;
     for(size_t p = 1; running && p < pCount; ++p) {
         ControlPoint &prev = points[p-1], &next = points[p];
-        for(size_t i = 0; i < motorCount; ++i) {
-            motors[i]->run(p*20, true);
-            motors[i]->getParam(L6470::ParamName::SPEED, value);
+        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+            motors[motorIndex]->run(p*20, true);
+            motors[motorIndex]->getParam(L6470::ParamName::SPEED, value);
             printf("%d %d\n", i, value);
         }
         usleep(1000);
@@ -56,6 +57,30 @@ int main(int argc, char** argv) {
 
     socketManager.onReceiveMsgPack = [](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> socket, std::unique_ptr<MsgPack::Element> element) {
         std::cout << "Received data from " << socket->hostRemote << ":" << socket->portRemote << ": " << *element << std::endl;
+        auto mapElement = dynamic_cast<MsgPack::Map*>(element.get());
+        if(!mapElement) return;
+        auto map = mapElement->getElementsMap();
+        auto typeIter = map.find("type");
+        if(typeIter == map.end()) return;
+        auto typeElement = dynamic_cast<MsgPack::String*>(typeIter.second);
+        if(!typeElement) return;
+        std::string type = typeElement->stdString();
+        std::function<bool(L6470*)> command;
+        if(type == "run")
+            command = std::bind(&L6470::run, std::placeholders::_1, speed, dir);
+        else if(type == "stop")
+            command = std::bind(&L6470::stop, std::placeholders::_1, false);
+        else if(type == "idle")
+            command = std::setIdle(&L6470::stop, std::placeholders::_1, false);
+        else return;
+        auto motorIter = map.find("type");
+        if(motorIter != map.end()) {
+            auto motorElement = dynamic_cast<MsgPack::Number*>(motorIter.second);
+            if(!motorElement) return;
+            size_t motorIndex = motorElement->template getValue<size_t>();
+            command(motors[motorIndex]);
+        }else for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+            command(motors[motorIndex]);
     };
 
     try {
@@ -64,13 +89,13 @@ int main(int argc, char** argv) {
             for(size_t i = 0; i < motorCount; ++i) {
                 const char* error = motors[i]->getStatus();
                 if(error) {
-                    std::cout << "ERROR occured" << std::endl;
                     for(auto& iter : serverSocket.get()->clients) {
-                        std::cout << "ERROR broadcasted to " << iter.get()->hostRemote << std::endl;
                         netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
-                        msgPackSocket << MsgPack__Factory(MapHeader(2));
+                        msgPackSocket << MsgPack__Factory(MapHeader(3));
                         msgPackSocket << MsgPack::Factory("type");
                         msgPackSocket << MsgPack::Factory("error");
+                        msgPackSocket << MsgPack::Factory("motor");
+                        msgPackSocket << MsgPack::Factory(i);
                         msgPackSocket << MsgPack::Factory("message");
                         msgPackSocket << MsgPack::Factory(error);
                     }
@@ -85,8 +110,8 @@ int main(int argc, char** argv) {
         std::cout << "netLink::Exception " << (int)exc.code << " occured" << std::endl;
     }
 
-    for(size_t i = 0; i < motorCount; ++i)
-        motors[i]->setIdle(false);
+    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+        motors[motorIndex]->setIdle(false);
     motorDriversActive.setValue(0);
 
     return 0;
