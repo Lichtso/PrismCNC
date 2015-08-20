@@ -1,5 +1,5 @@
 #include "L6470.h"
-#include "netLink/include/netLink.h"
+#include <netLink/netLink.h>
 
 const size_t motorCount = 3;
 
@@ -61,11 +61,12 @@ int main(int argc, char** argv) {
     try {
         serverSocket->initAsTcpServer("*", 3823);
         for(bool serverRunning = true; serverRunning; ) {
-            socketManager.listen();
             for(size_t i = 0; i < motorCount; ++i) {
                 const char* error = motors[i]->getStatus();
                 if(error) {
+                    std::cout << "ERROR occured" << std::endl;
                     for(auto& iter : serverSocket.get()->clients) {
+                        std::cout << "ERROR broadcasted to " << iter.get()->hostRemote << std::endl;
                         netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
                         msgPackSocket << MsgPack__Factory(MapHeader(2));
                         msgPackSocket << MsgPack::Factory("type");
@@ -78,6 +79,7 @@ int main(int argc, char** argv) {
                 }
                 motors[i]->updatePosition();
             }
+            socketManager.listen();
         }
     }catch(netLink::Exception exc) {
         std::cout << "netLink::Exception " << (int)exc.code << " occured" << std::endl;

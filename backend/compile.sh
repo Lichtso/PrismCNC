@@ -1,1 +1,1 @@
-g++ -O3 -std=c++0x -LnetLink/build/out -lnetLink -o CNCDaemon *.cpp
+g++ -O3 -std=c++0x -o CNCDaemon *.cpp -lnetLink -Wl,-rpath,/usr/local/lib/

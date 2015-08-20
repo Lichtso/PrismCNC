@@ -132,7 +132,7 @@ bool L6470::updatePosition() {
 
     absPos &= ~(overflowRef-1);
     int64_t diff = postPos-prevPos;
-    printf("Motor %d diff %lld\n", slaveIndex, diff);
+    //printf("Motor %d diff %lld\n", slaveIndex, diff);
 
     if(std::abs(diff) > (overflowRef>>2)) {
         if(signPost) {
@@ -144,7 +144,7 @@ bool L6470::updatePosition() {
         }
     }
     absPos |= postPos;
-    printf("Motor %d pos %lld\n", slaveIndex, absPos);
+    //printf("Motor %d pos %lld\n", slaveIndex, absPos);
 
     return true;
 }
