@@ -1,11 +1,9 @@
 #include <math.h>
 #include <errno.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <string.h>
-#include <sys/ioctl.h>
+#include <iostream>
 
 class GPIOpin {
     size_t index;

@@ -1,6 +1,5 @@
 #include "L6470.h"
 #include "netLink/include/netLink.h"
-#include <iostream>
 
 const size_t motorCount = 3;
 

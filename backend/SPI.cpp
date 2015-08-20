@@ -1,4 +1,7 @@
 #include <linux/spi/spidev.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "SPI.h"
 
 SPI::SPI(size_t _slaveCount, uint32_t frequency) :slaveCount(_slaveCount) {
