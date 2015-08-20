@@ -117,7 +117,7 @@ const char* L6470::getStatus() {
        !(value & (uint32_t)L6470::DriverStatus::STEP_LOSS_A))
         return "Step Loss";
     if(value & (uint32_t)L6470::DriverStatus::SW_EVN)
-        return "Switch";
+        return "Hardware Button";
     return NULL;
 }
 

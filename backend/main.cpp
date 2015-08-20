@@ -81,11 +81,12 @@ int main(int argc, char** argv) {
         else if(type == "idle")
             command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
         else return;
-        iter = map.find("type");
+        iter = map.find("motor");
         if(iter != map.end()) {
             auto motorElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!motorElement) return;
             size_t motorIndex = motorElement->getValue<size_t>();
+            if(motorIndex > motorCount) return;
             command(motors[motorIndex]);
         }else for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
             command(motors[motorIndex]);
@@ -105,7 +106,7 @@ int main(int argc, char** argv) {
                         msgPackSocket << MsgPack::Factory("motor");
                         msgPackSocket << MsgPack::Factory((uint64_t)motorIndex);
                         msgPackSocket << MsgPack::Factory("message");
-                        msgPackSocket << MsgPack::Factory((uint64_t)error);
+                        msgPackSocket << MsgPack::Factory(error);
                     }
                     serverRunning = false;
                     break;

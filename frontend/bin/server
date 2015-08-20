@@ -9,19 +9,58 @@ const express = require('express'),
     net = require('net'),
     app = express(),
     server = require('http').Server(app),
-    io = require('socket.io')(server);
+    io = require('socket.io')(server),
+    stdin = process.openStdin();
 
-var client = new net.Socket();
-client.connect(3823, '10.0.1.7', function() {
-	console.log('Connected');
+var CNCDeamon = new net.Socket();
+const encodeStream = msgpack.createEncodeStream();
+encodeStream.pipe(CNCDeamon);
 
-  const encodeStream = msgpack.createEncodeStream();
-  encodeStream.pipe(client);
+const decodeStream = msgpack.createDecodeStream();
+CNCDeamon.pipe(decodeStream).on('data', console.warn);
 
-  const decodeStream = msgpack.createDecodeStream();
-  client.pipe(decodeStream).on("data", console.warn);
+CNCDeamon.connect(3823, '10.0.1.10', function() {
+    console.log('Connected');
+});
 
-  encodeStream.write({object: true, a: [1, 2, 3,4, 5], b: 77.899, c: "a longer string ....." });
+CNCDeamon.on('close', function() {
+    console.log('Disconnected');
+    process.exit();
+});
+
+var speed = 1000;
+stdin.setRawMode(true);
+stdin.resume();
+stdin.setEncoding('utf8');
+stdin.on('data', function(key) {
+    if(key === '\u0003') // Ctrl-C
+        process.exit();
+
+    switch(key) {
+        case 'd':
+            encodeStream.write({'type': 'run', 'speed': speed, 'dir': false, 'motor': 0});
+        break;
+        case 'a':
+            encodeStream.write({'type': 'run', 'speed': speed, 'dir': true, 'motor': 0});
+        break;
+        case 'w':
+            encodeStream.write({'type': 'run', 'speed': speed, 'dir': false, 'motor': 1});
+        break;
+        case 's':
+            encodeStream.write({'type': 'run', 'speed': speed, 'dir': true, 'motor': 1});
+        break;
+        case 'q':
+            encodeStream.write({'type': 'run', 'speed': speed, 'dir': false, 'motor': 2});
+        break;
+        case 'e':
+            encodeStream.write({'type': 'run', 'speed': speed, 'dir': true, 'motor': 2});
+        break;
+        case ' ':
+            encodeStream.write({'type': 'stop'});
+        break;
+        default:
+            process.stdout.write(key);
+    }
 });
 
 
