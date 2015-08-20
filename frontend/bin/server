@@ -4,24 +4,62 @@
 "use strict";
 
 const express = require('express'),
-    path = require('path'),
-    msgpack = require('msgpack-lite'),
-    net = require('net'),
-    app = express(),
-    server = require('http').Server(app),
-    io = require('socket.io')(server);
+  path = require('path'),
+  msgpack = require('msgpack-lite'),
+  net = require('net'),
+  app = express(),
+  server = require('http').Server(app),
+  io = require('socket.io')(server),
+  keypress = require('keypress'),
+  tty = require('tty');
+
+keypress(process.stdin);
+
+
+if (typeof process.stdin.setRawMode == 'function') {
+  process.stdin.setRawMode(true);
+} else {
+  tty.setRawMode(true);
+}
+
+process.stdin.resume();
+
+let encodeStream;
+
+// listen for the "keypress" event
+process.stdin.on('keypress', function (ch, key) {
+  console.log('got "keypress"', key);
+  if (key && key.ctrl && key.name == 'c') {
+    process.stdin.pause();
+  }
+
+  if (key && key.name == 'w') {
+    if (encodeStream) {
+      encodeStream.write({    
+        "type": "run",
+            "speed": 1000,
+            "dir": true,
+            "motor": 0
+      });
+    }
+    else {
+      console.log("no conection...");
+    }
+  }
+});
+
 
 var client = new net.Socket();
 client.connect(3823, '10.0.1.7', function() {
 	console.log('Connected');
 
-  const encodeStream = msgpack.createEncodeStream();
+  encodeStream = msgpack.createEncodeStream();
   encodeStream.pipe(client);
 
   const decodeStream = msgpack.createDecodeStream();
   client.pipe(decodeStream).on("data", console.warn);
 
-  encodeStream.write({object: true, a: [1, 2, 3,4, 5], b: 77.899, c: "a longer string ....." });
+  //encodeStream.write({object: true, a: [1, 2, 3,4, 5], b: 77.899, c: "a longer string ....." });
 });
 
 

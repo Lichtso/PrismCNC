@@ -6,6 +6,7 @@
   "author": "Markus Felten <markus.felten@gmx.de>",
   "dependencies": {
     "express": "^4.12.3",
+    "keypress": "^0.2.1",
     "msgpack-lite": "^0.1.5",
     "socket.io": "^1.3.5"
   }
