@@ -103,7 +103,7 @@ bool L6470::resetFlags(uint32_t& status) {
 
 const char* L6470::getStatus() {
     uint32_t value;
-    if(!motors[i]->resetFlags(value))
+    if(!resetFlags(value))
         return "PCI";
     if(!(value & (uint32_t)L6470::DriverStatus::TH_SD))
         return "Thermal Shutdown"; // 160°C

@@ -1,5 +1,6 @@
 #include "L6470.h"
 #include "netLink/include/netLink.h"
+#include <iostream>
 
 const size_t motorCount = 3;
 
@@ -47,7 +48,7 @@ int main(int argc, char** argv) {
     };
 
     socketManager.onStatusChanged = [](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> socket, netLink::Socket::Status prev) {
-        std::cout << "Status of " << socket->hostRemote << ":" << socket->portRemote << " changed from " << (int)prev << " to " << (int)(socket.get()->status) << std::endl;
+        std::cout << "Status of " << socket->hostRemote << ":" << socket->portRemote << " changed from " << (int)prev << " to " << (int)(socket.get()->getStatus()) << std::endl;
     };
 
     socketManager.onDisconnect = [](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> socket) {
@@ -65,7 +66,7 @@ int main(int argc, char** argv) {
             for(size_t i = 0; i < motorCount; ++i) {
                 const char* error = motors[i]->getStatus();
                 if(error) {
-                    for(auto& iter : serverSocket.clients) {
+                    for(auto& iter : serverSocket.get()->clients) {
                         netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
                         msgPackSocket << MsgPack__Factory(MapHeader(2));
                         msgPackSocket << MsgPack::Factory("type");

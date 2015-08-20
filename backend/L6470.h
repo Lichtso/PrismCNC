@@ -123,6 +123,6 @@ class L6470 {
 
     //High level
     const char* getStatus();
-    void updatePosition();
+    bool updatePosition();
     float getPositionInMM();
 };
