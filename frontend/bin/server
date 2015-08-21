@@ -7,7 +7,6 @@ const express = require('express'),
     path = require('path'),
     msgpack = require('msgpack-lite'),
     net = require('net'),
-    util = require('util'),
     app = express(),
     server = require('http').Server(app),
     io = require('socket.io')(server),
@@ -22,7 +21,10 @@ const decodeStream = msgpack.createDecodeStream();
 CNCDeamon.pipe(decodeStream).on('data', function(data) {
     switch(data.type) {
         case 'position':
-            process.stdout.write(util.format("\r\x1B[2K X %4.3f\nY %4.3f\nZ %4.3f", data.coords[0],data.coords[1],data.coords[2]));
+            var str = '\r\x1B[2K';
+            for(var i in data.coords)
+                str += data.coords[i].toFixed(3)+' ';
+            process.stdout.write(str);
         break;
         default:
             console.warn(data);
@@ -30,11 +32,11 @@ CNCDeamon.pipe(decodeStream).on('data', function(data) {
 });
 
 CNCDeamon.connect(3823, '10.0.1.10', function() {
-    console.log('Connected');
+    console.log('Ready');
 });
 
 CNCDeamon.on('close', function() {
-    console.log('Disconnected');
+    console.log();
     process.exit();
 });
 

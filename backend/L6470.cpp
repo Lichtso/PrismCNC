@@ -134,22 +134,15 @@ bool L6470::updatePosition() {
     postPos |= (~wrapMask)*signPost;
     int64_t diff = postPos-prevPos;
 
-    printf("Motor %d, %016llX, %lld", slaveIndex, absPos, diff);
-
     auto _absPos = absPos;
     absPos &= ~wrapMask;
     absPos |= postPos&wrapMask;
     if(signPrev != signPost && std::abs(diff) < (wrapAround>>2)) {
-        if(signPrev) {
+        if(signPrev)
             absPos += wrapAround;
-            printf(" (overflow)");
-        }else{
+        else
             absPos -= wrapAround;
-            printf(" (underflow)");
-        }
     }
-
-    printf(", %f\n", getPositionInMM());
 
     return true;
 }
