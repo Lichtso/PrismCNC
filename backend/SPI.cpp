@@ -11,7 +11,7 @@ SPI::SPI(size_t _slaveCount, uint32_t frequency) :slaveCount(_slaveCount) {
         return;
     }
 
-    uint8_t setting = 0; // SPI_NO_CS SPI_CPHA SPI_CPOL
+    uint8_t setting = SPI_MODE_3; // SPI_CPOL | SPI_CPHA
     if(ioctl(handle, SPI_IOC_WR_MODE, &setting) < 0)
         printf("SPI changing mode failed: %s\n", strerror(errno));
 
@@ -65,9 +65,6 @@ bool SPI::transfer(size_t slaveIndex, uint8_t* buffer, uint64_t size) const {
     transfer.bits_per_word = 8;
     transfer.cs_change = 0;
     transfer.pad = 0;*/
-
-    /*for(size_t i = 0; i < slaveCount; ++i)
-        slaveCS[i].setValue(1);*/
 
     for(size_t i = 0; i < size; ++i) {
         slaveCS[slaveIndex].setValue(0);

@@ -24,7 +24,15 @@ const encodeStream = msgpack.createEncodeStream();
 encodeStream.pipe(CNCDeamon);
 
 const decodeStream = msgpack.createDecodeStream();
-CNCDeamon.pipe(decodeStream).on('data', console.warn);
+CNCDeamon.pipe(decodeStream).on('data', function(data) {
+    switch(data.type) {
+        case 'position':
+            console.log(data);
+        break;
+        default:
+            console.warn(data);
+    }
+});
 
 CNCDeamon.connect(3823, '10.0.1.10', function() {
     console.log('Connected');
@@ -35,7 +43,7 @@ CNCDeamon.on('close', function() {
     process.exit();
 });
 
-var speed = 20000;
+var speed = 40000;
 stdin.setRawMode(true);
 stdin.resume();
 stdin.setEncoding('utf8');
@@ -68,8 +76,8 @@ stdin.on('data', function(key) {
         case 'x':
             encodeStream.write({'type': 'idle'});
         break;
-        default:
-            process.stdout.write(key);
+        /*default:
+            process.stdout.write(key);*/
     }
 });
 
