@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
                     msgPackSocket << MsgPack::Factory("coords");
                     msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                        msgPackSocket << MsgPack::Factory(motors[motorIndex]->updatePosition());
+                        msgPackSocket << MsgPack::Factory(motors[motorIndex]->getPositionInMM());
                 }
             }
             socketManager.listen();

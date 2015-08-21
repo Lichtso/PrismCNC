@@ -13,12 +13,6 @@ const express = require('express'),
     stdin = process.openStdin();
 stdin.setRawMode(true);
 
-/*if(typeof stdin.setRawMode == 'function') {
-  stdin.setRawMode(true);
-}else{
-  tty.setRawMode(true);
-}*/
-
 var CNCDeamon = new net.Socket();
 const encodeStream = msgpack.createEncodeStream();
 encodeStream.pipe(CNCDeamon);
@@ -27,7 +21,7 @@ const decodeStream = msgpack.createDecodeStream();
 CNCDeamon.pipe(decodeStream).on('data', function(data) {
     switch(data.type) {
         case 'position':
-            console.log(data);
+            process.stdout.write("\r\x1B[2K"+data.coords);
         break;
         default:
             console.warn(data);
