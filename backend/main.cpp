@@ -1,5 +1,5 @@
 #include "L6470.h"
-//#include <functional>
+#include <chrono>
 #include <netLink/netLink.h>
 
 const size_t motorCount = 3;
@@ -89,6 +89,7 @@ int main(int argc, char** argv) {
             command(motors[motorIndex]);
     };
 
+    auto prevTime = std::chrono::steady_clock::now();
     try {
         serverSocket->initAsTcpServer("*", 3823);
         for(bool serverRunning = true; serverRunning; ) {
@@ -110,6 +111,24 @@ int main(int argc, char** argv) {
                 }
                 motors[motorIndex]->updatePosition();
             }
+            auto now = std::chrono::steady_clock::now();
+            auto timeInterval = std::chrono::duration_cast<std::chrono::microseconds>(now-prevTime).count();
+            prevTime = now;
+            
+            std::cout << timeInterval << "μs" << std::endl;
+
+            /*for(auto& iter : serverSocket.get()->clients) {
+                netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
+                msgPackSocket << MsgPack__Factory(MapHeader(3));
+                msgPackSocket << MsgPack::Factory("type");
+                msgPackSocket << MsgPack::Factory("position");
+                msgPackSocket << MsgPack::Factory("timeInterval");
+                msgPackSocket << MsgPack::Factory(timeInterval);
+                msgPackSocket << MsgPack::Factory("coords");
+                msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
+                for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+                    msgPackSocket << MsgPack::Factory(motors[motorIndex]->updatePosition());
+            }*/
             socketManager.listen();
         }
     }catch(netLink::Exception exc) {

@@ -124,8 +124,8 @@ const char* L6470::getStatus() {
 
 bool L6470::updatePosition() {
     const int64_t wrapAround = 0x00400000,
-          int64_t wrapMask = wrapAround-1,
-          int64_t signMask = wrapAround>>1;
+          wrapMask = wrapAround-1,
+          signMask = wrapAround>>1;
 
     int32_t prevPos = absPos&wrapMask, postPos;
     if(!getParam(L6470::ParamName::ABS_POS, (uint32_t&)postPos)) return false;
@@ -134,7 +134,7 @@ bool L6470::updatePosition() {
     postPos |= (~wrapMask)*signPost;
     int64_t diff = postPos-prevPos;
 
-    printf("Motor %d, %08X, %08X, %016llX, %lld", slaveIndex, prevPos, postPos, absPos, diff);
+    printf("Motor %d, %016llX, %lld", slaveIndex, absPos, diff);
 
     auto _absPos = absPos;
     absPos &= ~wrapMask;
