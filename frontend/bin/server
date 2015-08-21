@@ -35,7 +35,7 @@ CNCDeamon.on('close', function() {
     process.exit();
 });
 
-var speed = 15000;
+var speed = 20000;
 stdin.setRawMode(true);
 stdin.resume();
 stdin.setEncoding('utf8');

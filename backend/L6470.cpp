@@ -123,22 +123,24 @@ const char* L6470::getStatus() {
 }
 
 bool L6470::updatePosition() {
-    const int64_t wrapAround = 0x00400000;
+    const int64_t wrapAround = 0x00400000,
+          int64_t wrapMask = wrapAround-1,
+          int64_t signMask = wrapAround>>1;
 
-    int32_t prevPos = absPos&(wrapAround-1), postPos;
+    int32_t prevPos = absPos&wrapMask, postPos;
     if(!getParam(L6470::ParamName::ABS_POS, (uint32_t&)postPos)) return false;
-    bool signPrev = prevPos&(wrapAround>>1), signPost = postPos&(wrapAround>>1);
-    prevPos |= 0xFFE00000*signPrev;
-    postPos |= 0xFFE00000*signPost;
+    bool signPrev = prevPos&signMask, signPost = postPos&signMask;
+    prevPos |= (~wrapMask)*signPrev;
+    postPos |= (~wrapMask)*signPost;
     int64_t diff = postPos-prevPos;
 
     printf("Motor %d, %08X, %08X, %016llX, %lld", slaveIndex, prevPos, postPos, absPos, diff);
 
     auto _absPos = absPos;
-    absPos &= ~(wrapAround-1);
-    absPos |= postPos;
+    absPos &= ~wrapMask;
+    absPos |= postPos&wrapMask;
     if(signPrev != signPost && std::abs(diff) < (wrapAround>>2)) {
-        if(signPost) {
+        if(signPrev) {
             absPos += wrapAround;
             printf(" (overflow)");
         }else{
@@ -147,7 +149,7 @@ bool L6470::updatePosition() {
         }
     }
 
-    printf(", %lld\n", absPos-_absPos);
+    printf(", %f\n", getPositionInMM());
 
     return true;
 }
