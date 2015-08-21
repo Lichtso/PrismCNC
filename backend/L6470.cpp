@@ -11,6 +11,7 @@ L6470::L6470(SPI* _bus, size_t _slaveIndex)
     setParam(L6470::ParamName::FS_SPD, 39);
     setParam(L6470::ParamName::OCD_TH, 4); // 8
     setParam(L6470::ParamName::STALL_TH, 50); // 64
+    resetHome();
     getStatus();
 }
 
@@ -132,19 +133,20 @@ bool L6470::updatePosition() {
 
     absPos &= ~(overflowRef-1);
     int64_t diff = postPos-prevPos;
-    //printf("Motor %d diff %lld\n", slaveIndex, diff);
+    printf("Motor %d, %lld, %lld", slaveIndex, absPos, diff);
 
     if(std::abs(diff) > (overflowRef>>2)) {
         if(signPost) {
-            absPos += overflowRef;
-            printf("Motor %d overflow\n", slaveIndex);
+            //absPos += overflowRef;
+            printf(" (overflow)");
         }else{
-            absPos -= overflowRef;
-            printf("Motor %d underflow\n", slaveIndex);
+            //absPos -= overflowRef;
+            printf(" (underflow)");
         }
     }
+
     absPos |= postPos;
-    //printf("Motor %d pos %lld\n", slaveIndex, absPos);
+    printf("\n");
 
     return true;
 }

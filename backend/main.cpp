@@ -71,11 +71,8 @@ int main(int argc, char** argv) {
             if(iter == map.end()) return;
             auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!speedElement) return;
-            iter = map.find("dir");
-            if(iter == map.end()) return;
-            auto dirElement = dynamic_cast<MsgPack::Primitive*>(iter->second);
-            if(!dirElement || dirElement->getType() == MsgPack::NIL) return;
-            command = std::bind(&L6470::run, std::placeholders::_1, speedElement->getValue<uint32_t>(), dirElement->getValue());
+            int64_t speed = speedElement->getValue<int64_t>();
+            command = std::bind(&L6470::run, std::placeholders::_1, (uint32_t)std::abs(speed), (speed >= 0));
         }else if(type == "stop")
             command = std::bind(&L6470::stop, std::placeholders::_1, false);
         else if(type == "idle")

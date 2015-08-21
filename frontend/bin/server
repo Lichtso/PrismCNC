@@ -35,7 +35,7 @@ CNCDeamon.on('close', function() {
     process.exit();
 });
 
-var speed = 1000;
+var speed = 15000;
 stdin.setRawMode(true);
 stdin.resume();
 stdin.setEncoding('utf8');
@@ -45,25 +45,28 @@ stdin.on('data', function(key) {
 
     switch(key) {
         case 'd':
-            encodeStream.write({'type': 'run', 'speed': speed, 'dir': false, 'motor': 0});
+            encodeStream.write({'type': 'run', 'speed': -speed, 'motor': 0});
         break;
         case 'a':
-            encodeStream.write({'type': 'run', 'speed': speed, 'dir': true, 'motor': 0});
-        break;
-        case 'w':
-            encodeStream.write({'type': 'run', 'speed': speed, 'dir': false, 'motor': 1});
+            encodeStream.write({'type': 'run', 'speed': speed, 'motor': 0});
         break;
         case 's':
-            encodeStream.write({'type': 'run', 'speed': speed, 'dir': true, 'motor': 1});
+            encodeStream.write({'type': 'run', 'speed': -speed, 'motor': 1});
+        break;
+        case 'w':
+            encodeStream.write({'type': 'run', 'speed': speed, 'motor': 1});
         break;
         case 'q':
-            encodeStream.write({'type': 'run', 'speed': speed, 'dir': false, 'motor': 2});
+            encodeStream.write({'type': 'run', 'speed': -speed, 'motor': 2});
         break;
         case 'e':
-            encodeStream.write({'type': 'run', 'speed': speed, 'dir': true, 'motor': 2});
+            encodeStream.write({'type': 'run', 'speed': speed, 'motor': 2});
         break;
-        case ' ':
+        case 'y':
             encodeStream.write({'type': 'stop'});
+        break;
+        case 'x':
+            encodeStream.write({'type': 'idle'});
         break;
         default:
             process.stdout.write(key);
