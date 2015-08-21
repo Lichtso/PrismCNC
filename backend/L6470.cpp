@@ -131,9 +131,10 @@ bool L6470::updatePosition() {
     prevPos |= 0xFFE00000*signPrev;
     postPos |= 0xFFE00000*signPost;
     int64_t diff = postPos-prevPos;
-    
-    printf("Motor %d, %08X, %08X, %08llX, %lld", slaveIndex, prevPos, postPos, absPos, diff);
 
+    printf("Motor %d, %08X, %08X, %016llX, %lld", slaveIndex, prevPos, postPos, absPos, diff);
+
+    auto _absPos = absPos;
     absPos = absPos & ~(overflowRef-1) | postPos;
     if(std::abs(diff) > (overflowRef>>2)) {
         if(signPost) {
@@ -144,7 +145,8 @@ bool L6470::updatePosition() {
             printf(" (underflow)");
         }
     }
-    printf("\n");
+
+    printf(", %lld\n", absPos-_absPos);
 
     return true;
 }
