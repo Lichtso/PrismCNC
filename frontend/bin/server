@@ -7,6 +7,7 @@ const express = require('express'),
     path = require('path'),
     msgpack = require('msgpack-lite'),
     net = require('net'),
+    util = require('util'),
     app = express(),
     server = require('http').Server(app),
     io = require('socket.io')(server),
@@ -21,7 +22,7 @@ const decodeStream = msgpack.createDecodeStream();
 CNCDeamon.pipe(decodeStream).on('data', function(data) {
     switch(data.type) {
         case 'position':
-            process.stdout.write("\r\x1B[2K"+data.coords);
+            process.stdout.write(util.format("\r\x1B[2K X %4.3f\nY %4.3f\nZ %4.3f", data.coords[0],data.coords[1],data.coords[2]));
         break;
         default:
             console.warn(data);
