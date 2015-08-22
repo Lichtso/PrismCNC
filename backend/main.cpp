@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
             auto posElement = dynamic_cast<MsgPack::Array*>(iter->second);
             if(!posElement) return;
             auto posVector = posElement->getElementsVector();
-            if(posVector.size() != motorCount) return;
+            if(posVector->size() != motorCount) return;
             iter = map.find("duration");
             if(iter == map.end()) return;
             auto durationElement = dynamic_cast<MsgPack::Number*>(iter->second);
@@ -84,7 +84,9 @@ int main(int argc, char** argv) {
             dstTime += std::chrono::microseconds(durationElement->getValue<uint64_t>());
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 srcPos[motorIndex] = motors[motorIndex]->getPositionInMM();
-                dstPos[motorIndex] = posVector[motorIndex].get()->getValue<float>();
+                auto axisElement = dynamic_cast<MsgPack::Number*>(posVector[motorIndex].get());
+                if(!axisElement) return;
+                dstPos[motorIndex] = axisElement->getValue<float>();
             }
             mode = AUTOMATIC;
         }
@@ -128,7 +130,7 @@ int main(int argc, char** argv) {
                 mode = IDLE;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                     motors[motorIndex]->setIdle(false);
-                printf("DONE\n", speedUInt);
+                printf("DONE\n");
             }
 
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
