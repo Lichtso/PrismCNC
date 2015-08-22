@@ -45,7 +45,7 @@ CNCDeamon.pipe(decodeStream).on('data', function (data) {
       axis.y.coord = data.coords[1];
       axis.z.coord = data.coords[2];
 
-      let str = '\r\x1B[2K';
+      var str = '\r\x1B[2K';
 
       for (let a of ['x','y','z']) {
         str += `${axis[a].coord.toFixed(3)} (${axis[a].gear}) `;
@@ -127,13 +127,13 @@ stdin.on('data', function (key) {
       axis.z.gear = 0;
       break;
     default:
-      const d = directions[key];
+      var d = directions[key];
 
       if (d) {
         if (lastDirection === d) {
           if(d.axis.gear < gears.length - 1 ) d.axis.gear += 1;
         } else {
-          if(lastDirection.axis === d.axis) {
+          if(lastDirection && lastDirection.axis === d.axis) {
             d.axis.gear = 0;
           }
           else {
