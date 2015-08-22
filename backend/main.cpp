@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
             dstTime += std::chrono::microseconds(durationElement->getValue<uint64_t>());
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 srcPos[motorIndex] = motors[motorIndex]->getPositionInMM();
-                auto axisElement = dynamic_cast<MsgPack::Number*>(posVector[motorIndex].get());
+                auto axisElement = dynamic_cast<MsgPack::Number*>((*posVector)[motorIndex].get());
                 if(!axisElement) return;
                 dstPos[motorIndex] = axisElement->getValue<float>();
             }
