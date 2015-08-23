@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
             auto durationElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!durationElement) return;
             srcTime = dstTime = runLoopNow;
-            dstTime += std::chrono::seconds(durationElement->getValue<float>());
+            dstTime += std::chrono::duration<float>(durationElement->getValue<float>());
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 srcPos[motorIndex] = motors[motorIndex]->getPosition();
                 auto axisElement = dynamic_cast<MsgPack::Number*>((*posVector)[motorIndex].get());
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
             if(iter == map.end()) return;
             auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!speedElement) return;
-            command = std::bind(&L6470::run, std::placeholders::_1, speedElement->getValue<float>());
+            command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
             mode = MANUEL;
         }else if(type == "stop") {
             command = std::bind(&L6470::stop, std::placeholders::_1, false);
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
             std::chrono::duration<float> timeLeft = dstTime-runLoopNow;
             // auto totalTime = std::chrono::duration_cast<std::chrono::microseconds>(dstTime-srcTime).count();
             // float progress = std::min(std::max((float)timeInterval/totalTime), 0.0F) 1.0F);
-            if(mode == AUTOMATIC && timeLeft <= 0) {
+            if(mode == AUTOMATIC && timeLeft.count() <= 0) {
                 mode = IDLE;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                     motors[motorIndex]->setIdle(false);
@@ -153,12 +153,12 @@ int main(int argc, char** argv) {
                     // TODO: Take srcPos and srcTime into account too
                     float speed = (dstPos[motorIndex]-motors[motorIndex]->getPosition())/timeLeft.count();
                     printf("%d %f", motorIndex, speed);
-                    motors[motorIndex]->run(speed);
-                    printf(" %f\n", motors[motorIndex]->getSpeed());
+                    motors[motorIndex]->runInHz(speed);
+                    printf(" %f\n", motors[motorIndex]->getSpeedInHz());
                 }
             }
             std::chrono::duration<float> timeLag = runLoopNow-runLoopPrev;
-            if(mode != IDLE && timeLag > 0.01) {
+            if(mode != IDLE && timeLag.count() > 0.01) {
                 runLoopPrev = runLoopNow;
                 for(auto& iter : serverSocket.get()->clients) {
                     netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
                     msgPackSocket << MsgPack::Factory("type");
                     msgPackSocket << MsgPack::Factory("position");
                     msgPackSocket << MsgPack::Factory("timeLag");
-                    msgPackSocket << MsgPack::Factory(timeLag);
+                    msgPackSocket << MsgPack::Factory(timeLag.count());
                     msgPackSocket << MsgPack::Factory("coords");
                     msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)

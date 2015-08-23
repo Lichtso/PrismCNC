@@ -121,9 +121,9 @@ class L6470 {
     bool resetFlags(uint32_t& status);
 
     //High level
-    bool run(float speed); // in Hz
+    bool runInHz(float speed);
     const char* getStatus();
     bool updatePosition();
     float getPosition();
-    float getSpeed(); // in Hz
+    float getSpeedInHz();
 };

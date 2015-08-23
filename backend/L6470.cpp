@@ -103,8 +103,9 @@ bool L6470::resetFlags(uint32_t& status) {
     return get(2, 0xD0, status);
 }
 
-bool L6470::run(float speed) {
-    return run(std::abs(speed*motorSteps*driverSteps/speedFixFactor), speed >= 0);
+bool L6470::runInHz(float speed) {
+    size_t tickSpeed = speed*motorSteps*driverSteps/speedFixFactor;
+    return run(std::abs(tickSpeed), speed >= 0);
 }
 
 const char* L6470::getStatus() {
@@ -156,7 +157,7 @@ float L6470::getPosition() {
     return (float)absPos/(motorSteps*driverSteps);
 }
 
-float L6470::getSpeed() {
+float L6470::getSpeedInHz() {
     uint32_t speed;
     getParam(ParamName::SPEED, speed);
     return speedFixFactor*speed/(motorSteps*driverSteps);
