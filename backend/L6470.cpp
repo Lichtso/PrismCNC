@@ -1,6 +1,6 @@
 #include "L6470.h"
 
-const float speedFixFactor = 0.015;
+const float speedFixFactor = 0.01490116119; // pow(2, –28)/(0.000000250)
 const size_t driverSteps = 128;
 
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
@@ -104,7 +104,7 @@ bool L6470::resetFlags(uint32_t& status) {
 }
 
 bool L6470::runInHz(float speed) {
-    return run(fabsf(speed/speedFixFactor*driverSteps), speed >= 0);
+    return run(fabsf(speed/speedFixFactor*motorSteps), speed >= 0);
 }
 
 const char* L6470::getStatus() {
@@ -159,5 +159,5 @@ float L6470::getPosition() {
 float L6470::getSpeedInHz() {
     uint32_t speed;
     getParam(ParamName::SPEED, speed);
-    return speed*speedFixFactor/driverSteps;
+    return speed*speedFixFactor/motorSteps;
 }
