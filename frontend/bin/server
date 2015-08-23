@@ -40,7 +40,7 @@ CNCDeamon.on('close', function() {
     process.exit();
 });
 
-var speed = 40000;
+var speed = 3;
 stdin.setRawMode(true);
 stdin.resume();
 stdin.setEncoding('utf8');
@@ -72,6 +72,9 @@ stdin.on('data', function(key) {
         break;
         case 'x':
             encodeStream.write({'type': 'idle'});
+        break;
+        case 'g':
+            encodeStream.write({'type': 'goto', 'duration': 10.0, 'pos': [10, 10, 0]});
         break;
         /*default:
             process.stdout.write(key);*/

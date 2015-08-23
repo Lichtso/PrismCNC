@@ -1,9 +1,10 @@
 #include "L6470.h"
 
+const float speedFixFactor = 0.015;
 const size_t driverSteps = 128;
 
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
-    :bus(_bus), slaveIndex(_slaveIndex), motorSteps(200), mmPerRound(1.0) {
+    :bus(_bus), slaveIndex(_slaveIndex), motorSteps(200) {
     setParam(L6470::ParamName::ACC, 138);
     setParam(L6470::ParamName::DEC, 138);
     setParam(L6470::ParamName::MIN_SPEED, 0);
@@ -102,6 +103,10 @@ bool L6470::resetFlags(uint32_t& status) {
     return get(2, 0xD0, status);
 }
 
+bool L6470::run(float speed) {
+    return run(std::abs(speed*motorSteps*driverSteps/speedFixFactor), speed >= 0);
+}
+
 const char* L6470::getStatus() {
     uint32_t value;
     if(!resetFlags(value))
@@ -147,6 +152,12 @@ bool L6470::updatePosition() {
     return true;
 }
 
-float L6470::getPositionInMM() {
-    return (float)absPos/(motorSteps*driverSteps)*mmPerRound;
+float L6470::getPosition() {
+    return (float)absPos/(motorSteps*driverSteps);
+}
+
+float L6470::getSpeed() {
+    uint32_t speed;
+    getParam(ParamName::SPEED, speed);
+    return speedFixFactor*speed/(motorSteps*driverSteps);
 }

@@ -94,11 +94,13 @@ const directions = {
 };
 
 const gears = [
-      0,
-   1000,
-   2500,
-  10000,
-  40000
+    0.0,
+    0.125,
+    0.25,
+    0.5,
+    1.0,
+    2.0,
+    4.0
 ];
 var lastDirection;
 

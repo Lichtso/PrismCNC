@@ -33,7 +33,6 @@ class L6470 {
     SPI* bus;
     size_t slaveIndex, motorSteps;
     int64_t absPos;
-    float mmPerRound;
 
     bool set(uint8_t len, uint8_t key, uint32_t value);
     bool get(uint8_t len, uint8_t key, uint32_t& value);
@@ -122,7 +121,9 @@ class L6470 {
     bool resetFlags(uint32_t& status);
 
     //High level
+    bool run(float speed); // in Hz
     const char* getStatus();
     bool updatePosition();
-    float getPositionInMM();
+    float getPosition();
+    float getSpeed(); // in Hz
 };
