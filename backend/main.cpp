@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
             auto durationElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!durationElement) return;
             srcTime = dstTime = runLoopNow;
-            dstTime += std::chrono::duration<float>(durationElement->getValue<float>());
+            dstTime += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(durationElement->getValue<float>()));
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 srcPos[motorIndex] = motors[motorIndex]->getPosition();
                 auto axisElement = dynamic_cast<MsgPack::Number*>((*posVector)[motorIndex].get());
@@ -152,9 +152,8 @@ int main(int argc, char** argv) {
                 if(mode == AUTOMATIC) {
                     // TODO: Take srcPos and srcTime into account too
                     float speed = (dstPos[motorIndex]-motors[motorIndex]->getPosition())/timeLeft.count();
-                    printf("%d %f", motorIndex, speed);
                     motors[motorIndex]->runInHz(speed);
-                    printf(" %f\n", motors[motorIndex]->getSpeedInHz());
+                    printf("%d %f %f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz());
                 }
             }
             std::chrono::duration<float> timeLag = runLoopNow-runLoopPrev;

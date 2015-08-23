@@ -104,8 +104,7 @@ bool L6470::resetFlags(uint32_t& status) {
 }
 
 bool L6470::runInHz(float speed) {
-    size_t tickSpeed = speed*motorSteps*driverSteps/speedFixFactor;
-    return run(std::abs(tickSpeed), speed >= 0);
+    return run(fabsf(speed/speedFixFactor*driverSteps), speed >= 0);
 }
 
 const char* L6470::getStatus() {
@@ -160,5 +159,5 @@ float L6470::getPosition() {
 float L6470::getSpeedInHz() {
     uint32_t speed;
     getParam(ParamName::SPEED, speed);
-    return speedFixFactor*speed/(motorSteps*driverSteps);
+    return speed*speedFixFactor/driverSteps;
 }
