@@ -3,6 +3,8 @@
 #include <netLink/netLink.h>
 
 const size_t motorCount = 3;
+L6470* motors[motorCount];
+GPIOpin motorDriversActive;
 netLink::SocketManager socketManager;
 std::shared_ptr<netLink::Socket> serverSocket = socketManager.newMsgPackSocket();
 std::queue<std::unique_ptr<MsgPack::Element>> commands;
@@ -12,8 +14,8 @@ size_t polygonVertex = 0;
 
 void handleCommand() {
     {
-        if(commands.size() == 0) return;
-        MsgPack::Element* element = commands.front();
+        if(commands.empty()) return;
+        auto element = commands.front().get();
         auto mapElement = dynamic_cast<MsgPack::Map*>(element);
         if(!mapElement) goto cancel;
         auto map = mapElement->getElementsMap();
@@ -24,8 +26,8 @@ void handleCommand() {
         auto verticesVector = verticesElement->getElementsVector();
         if(verticesVector->size() != motorCount) goto cancel;
 
-        if(polygonVertex < verticesVector.size()) {
-            auto vertexElement = dynamic_cast<MsgPack::Array*>(verticesVector[polygonVertex]);
+        if(polygonVertex < verticesVector->size()) {
+            auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[polygonVertex]);
             if(!vertexElement) goto cancel;
             auto vertexVector = vertexElement->getElementsVector();
             if(vertexVector->size() != motorCount) goto cancel;
@@ -69,11 +71,10 @@ void handleCommand() {
 
 int main(int argc, char** argv) {
     SPI bus(motorCount, 5000000);
-    GPIOpin motorDriversActive;
     motorDriversActive.setIndex(7);
     motorDriversActive.setMode(1);
     motorDriversActive.setValue(1);
-    L6470* motors[motorCount];
+
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
         motors[motorIndex] = new L6470(&bus, motorIndex);
 
@@ -98,7 +99,7 @@ int main(int argc, char** argv) {
         auto iter = map.find("type");
         if(iter == map.end()) return;
         auto typeElement = dynamic_cast<MsgPack::String*>(iter->second);
-        if(!typeElement) return false;
+        if(!typeElement) return;
         auto type = typeElement->stdString();
         if(type == "polygon") {
             commands.push(std::move(element));
@@ -107,14 +108,15 @@ int main(int argc, char** argv) {
         }
         std::function<bool(L6470*)> command;
         if(type == "run") {
-            if(commands.size()) return;
+            if(!commands.empty()) return;
             iter = map.find("speed");
             if(iter == map.end()) return;
             auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!speedElement) return;
             command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
         }else if(type == "stop") {
-            commands.clear();
+            while(!commands.empty())
+                command.pop();
             command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
         }else return;
         iter = map.find("motor");
@@ -154,7 +156,7 @@ int main(int argc, char** argv) {
                     break;
                 }
                 motors[motorIndex]->updatePosition();
-                if(commands.size()) {
+                if(!commands.empty()) {
                     float speed = (dstPos[motorIndex]-motors[motorIndex]->getPosition())/timeLeft.count();
                     motors[motorIndex]->runInHz(speed);
                     printf("%d %f %f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz());
