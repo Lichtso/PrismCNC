@@ -3,14 +3,69 @@
 #include <netLink/netLink.h>
 
 const size_t motorCount = 3;
-std::chrono::time_point<std::chrono::system_clock> runLoopPrev, runLoopNow;
-std::chrono::time_point<std::chrono::system_clock> srcTime, dstTime;
+netLink::SocketManager socketManager;
+std::shared_ptr<netLink::Socket> serverSocket = socketManager.newMsgPackSocket();
+std::queue<std::unique_ptr<MsgPack::Element>> commands;
+std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow, dstTime;
 float srcPos[motorCount], dstPos[motorCount];
-enum Mode {
-    IDLE,
-    MANUEL,
-    AUTOMATIC
-} mode;
+size_t polygonVertex = 0;
+
+void handleCommand() {
+    {
+        if(commands.size() == 0) return;
+        MsgPack::Element* element = commands.front();
+        auto mapElement = dynamic_cast<MsgPack::Map*>(element);
+        if(!mapElement) goto cancel;
+        auto map = mapElement->getElementsMap();
+        auto iter = map.find("vertices");
+        if(iter == map.end()) goto cancel;
+        auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
+        if(!verticesElement) goto cancel;
+        auto verticesVector = verticesElement->getElementsVector();
+        if(verticesVector->size() != motorCount) goto cancel;
+
+        if(polygonVertex < verticesVector.size()) {
+            auto vertexElement = dynamic_cast<MsgPack::Array*>(verticesVector[polygonVertex]);
+            if(!vertexElement) goto cancel;
+            auto vertexVector = vertexElement->getElementsVector();
+            if(vertexVector->size() != motorCount) goto cancel;
+            if(polygonVertex == 0)
+                printf("FIRST VERTEX\n");
+            else
+                printf("NEXT VERTEX\n");
+            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+                auto scalarElement = dynamic_cast<MsgPack::Number*>((*vertexVector)[motorIndex].get());
+                if(!scalarElement) goto cancel;
+                srcPos[motorCount] = (polygonVertex == 0) ? motors[motorIndex]->getPosition() : dstPos[motorCount];
+                dstPos[motorCount] = scalarElement->getValue<float>();
+            }
+            ++polygonVertex;
+        }else{
+            printf("LAST VERTEX\n");
+            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+                motors[motorIndex]->setIdle(false);
+            goto cancel;
+        }
+
+        iter = map.find("speed");
+        if(iter == map.end()) goto cancel;
+        auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
+        if(!speedElement) goto cancel;
+
+        float duration = 0.0;
+        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+            float diff = dstPos[motorCount]-srcPos[motorCount];
+            duration += diff*diff;
+        }
+        duration = sqrt(duration)/speedElement->getValue<float>();
+        dstTime = runLoopNow+std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(duration));
+        return;
+    }
+
+    cancel:
+    commands.pop();
+    polygonVertex = 0;
+}
 
 int main(int argc, char** argv) {
     SPI bus(motorCount, 5000000);
@@ -21,30 +76,6 @@ int main(int argc, char** argv) {
     L6470* motors[motorCount];
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
         motors[motorIndex] = new L6470(&bus, motorIndex);
-
-    /*size_t pCount = 128;
-    ControlPoint points[pCount];
-    for(size_t p = 0; p < pCount; ++p) {
-        float angle = (float)p/pCount*M_PI*2.0, radius = 10.0;
-        ControlPoint& point = points[p];
-        point.coord[0] = sin(angle)*radius;
-        point.coord[1] = cos(angle)*radius;
-        point.coord[2] = 0.0;
-    }
-
-    bool running = true;
-    for(size_t p = 1; running && p < pCount; ++p) {
-        ControlPoint &prev = points[p-1], &next = points[p];
-        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-            motors[motorIndex]->run(p*20, true);
-            motors[motorIndex]->getParam(L6470::ParamName::SPEED, value);
-            printf("%d %d\n", i, value);
-        }
-        usleep(1000);
-    }*/
-
-    netLink::SocketManager socketManager;
-    std::shared_ptr<netLink::Socket> serverSocket = socketManager.newMsgPackSocket();
 
     socketManager.onConnectRequest = [](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> serverSocket, std::shared_ptr<netLink::Socket> clientSocket) {
         std::cout << "Accepted connection from " << clientSocket->hostRemote << ":" << clientSocket->portRemote << std::endl;
@@ -67,44 +98,24 @@ int main(int argc, char** argv) {
         auto iter = map.find("type");
         if(iter == map.end()) return;
         auto typeElement = dynamic_cast<MsgPack::String*>(iter->second);
-        if(!typeElement) return;
-        std::string type = typeElement->stdString();
-        if(type == "goto") {
-            iter = map.find("pos");
-            if(iter == map.end()) return;
-            auto posElement = dynamic_cast<MsgPack::Array*>(iter->second);
-            if(!posElement) return;
-            auto posVector = posElement->getElementsVector();
-            if(posVector->size() != motorCount) return;
-            iter = map.find("duration");
-            if(iter == map.end()) return;
-            auto durationElement = dynamic_cast<MsgPack::Number*>(iter->second);
-            if(!durationElement) return;
-            srcTime = dstTime = runLoopNow;
-            dstTime += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(durationElement->getValue<float>()));
-            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                srcPos[motorIndex] = motors[motorIndex]->getPosition();
-                auto axisElement = dynamic_cast<MsgPack::Number*>((*posVector)[motorIndex].get());
-                if(!axisElement) return;
-                dstPos[motorIndex] = axisElement->getValue<float>();
-            }
-            mode = AUTOMATIC;
+        if(!typeElement) return false;
+        auto type = typeElement->stdString();
+        if(type == "polygon") {
+            commands.push(std::move(element));
+            handleCommand();
+            return;
         }
         std::function<bool(L6470*)> command;
         if(type == "run") {
-            if(mode == AUTOMATIC) return;
+            if(commands.size()) return;
             iter = map.find("speed");
             if(iter == map.end()) return;
             auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!speedElement) return;
             command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
-            mode = MANUEL;
         }else if(type == "stop") {
-            command = std::bind(&L6470::stop, std::placeholders::_1, false);
-            mode = MANUEL;
-        }else if(type == "idle") {
+            commands.clear();
             command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
-            mode = IDLE;
         }else return;
         iter = map.find("motor");
         if(iter != map.end()) {
@@ -117,20 +128,14 @@ int main(int argc, char** argv) {
             command(motors[motorIndex]);
     };
 
-    runLoopPrev = std::chrono::system_clock::now();
+    runLoopLastUpdate = std::chrono::system_clock::now();
     try {
         serverSocket->initAsTcpServer("*", 3823);
         for(bool serverRunning = true; serverRunning; ) {
             runLoopNow = std::chrono::system_clock::now();
             std::chrono::duration<float> timeLeft = dstTime-runLoopNow;
-            // auto totalTime = std::chrono::duration_cast<std::chrono::microseconds>(dstTime-srcTime).count();
-            // float progress = std::min(std::max((float)timeInterval/totalTime), 0.0F) 1.0F);
-            if(mode == AUTOMATIC && timeLeft.count() <= 0) {
-                mode = IDLE;
-                for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                    motors[motorIndex]->setIdle(false);
-                printf("DONE\n");
-            }
+            if(timeLeft.count() <= 0)
+                handleCommand();
 
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 const char* error = motors[motorIndex]->getStatus();
@@ -149,16 +154,16 @@ int main(int argc, char** argv) {
                     break;
                 }
                 motors[motorIndex]->updatePosition();
-                if(mode == AUTOMATIC) {
-                    // TODO: Take srcPos and srcTime into account too
+                if(commands.size()) {
                     float speed = (dstPos[motorIndex]-motors[motorIndex]->getPosition())/timeLeft.count();
                     motors[motorIndex]->runInHz(speed);
                     printf("%d %f %f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz());
                 }
             }
-            std::chrono::duration<float> timeLag = runLoopNow-runLoopPrev;
-            if(mode != IDLE && timeLag.count() > 0.01) {
-                runLoopPrev = runLoopNow;
+
+            std::chrono::duration<float> timeLag = runLoopNow-runLoopLastUpdate;
+            if(timeLag.count() > 0.01) {
+                runLoopLastUpdate = runLoopNow;
                 for(auto& iter : serverSocket.get()->clients) {
                     netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
                     msgPackSocket << MsgPack__Factory(MapHeader(3));
