@@ -14,20 +14,25 @@ size_t polygonVertex = 0;
 
 void handleCommand() {
     {
+        printf("handleCommand(); 1\n");
         if(commands.empty()) return;
         auto element = commands.front().get();
         auto mapElement = dynamic_cast<MsgPack::Map*>(element);
         if(!mapElement) goto cancel;
+        printf("handleCommand(); 2\n");
         auto map = mapElement->getElementsMap();
         auto iter = map.find("vertices");
         if(iter == map.end()) goto cancel;
         auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
         if(!verticesElement) goto cancel;
+        printf("handleCommand(); 3\n");
         auto verticesVector = verticesElement->getElementsVector();
         if(verticesVector->size() != motorCount) goto cancel;
+        printf("handleCommand(); 4\n");
 
         if(polygonVertex < verticesVector->size()) {
-            auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[polygonVertex]);
+            printf("handleCommand(); 5\n");
+            auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[polygonVertex].get());
             if(!vertexElement) goto cancel;
             auto vertexVector = vertexElement->getElementsVector();
             if(vertexVector->size() != motorCount) goto cancel;
@@ -48,23 +53,25 @@ void handleCommand() {
                 motors[motorIndex]->setIdle(false);
             goto cancel;
         }
-
+        printf("handleCommand(); 6\n");
         iter = map.find("speed");
         if(iter == map.end()) goto cancel;
         auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
         if(!speedElement) goto cancel;
-
+        printf("handleCommand(); 7\n");
         float duration = 0.0;
         for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
             float diff = dstPos[motorCount]-srcPos[motorCount];
             duration += diff*diff;
         }
+        printf("handleCommand(); 8\n");
         duration = sqrt(duration)/speedElement->getValue<float>();
         dstTime = runLoopNow+std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(duration));
         return;
     }
 
     cancel:
+    printf("handleCommand(); cancel\n");
     commands.pop();
     polygonVertex = 0;
 }
@@ -116,7 +123,7 @@ int main(int argc, char** argv) {
             command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
         }else if(type == "stop") {
             while(!commands.empty())
-                command.pop();
+                commands.pop();
             command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
         }else return;
         iter = map.find("motor");
@@ -136,7 +143,7 @@ int main(int argc, char** argv) {
         for(bool serverRunning = true; serverRunning; ) {
             runLoopNow = std::chrono::system_clock::now();
             std::chrono::duration<float> timeLeft = dstTime-runLoopNow;
-            if(timeLeft.count() <= 0)
+            if(!commands.empty() && timeLeft.count() <= 0)
                 handleCommand();
 
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
