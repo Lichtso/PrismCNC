@@ -25,26 +25,21 @@ void handleCommand() {
         if(iter == map.end()) goto cancel;
         auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
         if(!verticesElement) goto cancel;
-        printf("handleCommand(); 3\n");
         auto verticesVector = verticesElement->getElementsVector();
-        if(verticesVector->size() != motorCount) goto cancel;
-        printf("handleCommand(); 4\n");
+        printf("handleCommand(); 3\n");
 
         if(polygonVertex < verticesVector->size()) {
-            printf("handleCommand(); 5\n");
+            printf("handleCommand(); 4\n");
             auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[polygonVertex].get());
             if(!vertexElement) goto cancel;
             auto vertexVector = vertexElement->getElementsVector();
             if(vertexVector->size() != motorCount) goto cancel;
-            if(polygonVertex == 0)
-                printf("FIRST VERTEX\n");
-            else
-                printf("NEXT VERTEX\n");
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 auto scalarElement = dynamic_cast<MsgPack::Number*>((*vertexVector)[motorIndex].get());
                 if(!scalarElement) goto cancel;
-                srcPos[motorCount] = (polygonVertex == 0) ? motors[motorIndex]->getPosition() : dstPos[motorCount];
-                dstPos[motorCount] = scalarElement->getValue<float>();
+                srcPos[motorIndex] = (polygonVertex == 0) ? motors[motorIndex]->getPosition() : dstPos[motorIndex];
+                dstPos[motorIndex] = scalarElement->getValue<float>();
+                printf("NEXT VERTEX %d %d %f\n", polygonVertex, motorIndex, srcPos[motorIndex], dstPos[motorIndex]);
             }
             ++polygonVertex;
         }else{
@@ -53,19 +48,21 @@ void handleCommand() {
                 motors[motorIndex]->setIdle(false);
             goto cancel;
         }
-        printf("handleCommand(); 6\n");
+        printf("handleCommand(); 5\n");
         iter = map.find("speed");
         if(iter == map.end()) goto cancel;
         auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
         if(!speedElement) goto cancel;
-        printf("handleCommand(); 7\n");
+        printf("handleCommand(); 6\n");
         float duration = 0.0;
         for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-            float diff = dstPos[motorCount]-srcPos[motorCount];
+            float diff = dstPos[motorIndex]-srcPos[motorIndex];
             duration += diff*diff;
         }
-        printf("handleCommand(); 8\n");
-        duration = sqrt(duration)/speedElement->getValue<float>();
+        duration = sqrt(duration);
+        printf("handleCommand(); 7 %f ", duration);
+        duration /= speedElement->getValue<float>();
+        printf("%f\n", duration);
         dstTime = runLoopNow+std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(duration));
         return;
     }
