@@ -122,9 +122,9 @@ class L6470 {
 
     //High level
     bool runInHz(float speed);
-    bool goTo(float position);
+    bool goToInTurns(float position);
     const char* getStatus();
     bool updatePosition();
-    float getPosition();
+    float getPositionInTurns();
     float getSpeedInHz();
 };

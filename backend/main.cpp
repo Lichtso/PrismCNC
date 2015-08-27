@@ -34,7 +34,7 @@ void handleCommand() {
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 auto scalarElement = dynamic_cast<MsgPack::Number*>((*vertexVector)[motorIndex].get());
                 if(!scalarElement) goto cancel;
-                srcPos[motorIndex] = (polygonVertex == 0) ? motors[motorIndex]->getPosition() : dstPos[motorIndex];
+                srcPos[motorIndex] = (polygonVertex == 0) ? motors[motorIndex]->getPositionInTurns() : dstPos[motorIndex];
                 dstPos[motorIndex] = scalarElement->getValue<float>();
                 printf("NEXT VERTEX %d %d %f %f\n", polygonVertex, motorIndex, srcPos[motorIndex], dstPos[motorIndex]);
             }
@@ -155,15 +155,15 @@ int main(int argc, char** argv) {
                 }
                 motors[motorIndex]->updatePosition();
                 if(!commands.empty()) {
-                    float diff = dstPos[motorIndex]-motors[motorIndex]->getPosition();
+                    float diff = dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns();
                     if(timeLeft.count() > 0) {
                         float speed = diff/timeLeft.count();
                         motors[motorIndex]->runInHz(speed);
-                        printf("R %d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPosition());
+                        printf("R %d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                     }else{
                         float pos = dstPos[motorIndex];
-                        motors[motorIndex]->goTo(pos);
-                        printf("G %d %1.3f %1.3f %4.3f\n", motorIndex, pos, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPosition());
+                        motors[motorIndex]->goToInTurns(pos);
+                        printf("G %d %1.3f %1.3f %4.3f\n", motorIndex, pos, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                     }
                     dist += diff*diff;
                 }
@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
                     msgPackSocket << MsgPack::Factory("coords");
                     msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                        msgPackSocket << MsgPack::Factory(motors[motorIndex]->getPosition());
+                        msgPackSocket << MsgPack::Factory(motors[motorIndex]->getPositionInTurns());
                 }
             }
             socketManager.listen();

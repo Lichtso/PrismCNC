@@ -107,7 +107,7 @@ bool L6470::runInHz(float speed) {
     return run(fabsf(speed/speedFixFactor*motorSteps), speed >= 0);
 }
 
-bool L6470::goTo(float position) {
+bool L6470::goToInTurns(float position) {
     return goTo(position*motorSteps*driverSteps);
 }
 
@@ -156,7 +156,7 @@ bool L6470::updatePosition() {
     return true;
 }
 
-float L6470::getPosition() {
+float L6470::getPositionInTurns() {
     return (float)absPos/(motorSteps*driverSteps);
 }
 
