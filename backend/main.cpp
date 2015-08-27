@@ -54,10 +54,7 @@ void handleCommand() {
             float diff = dstPos[motorIndex]-srcPos[motorIndex];
             duration += diff*diff;
         }
-        duration = sqrt(duration);
-        printf("handleCommand duration: %f ", duration);
-        duration /= speedElement->getValue<float>();
-        printf("%f\n", duration);
+        duration = sqrt(duration)/speedElement->getValue<float>();
         dstTime = runLoopNow+std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(duration));
         return;
     }
@@ -160,10 +157,10 @@ int main(int argc, char** argv) {
                     if(timeLeft.count() > 0.05) {
                         float speed = diff/timeLeft.count();
                         motors[motorIndex]->runInHz(speed);
-                        printf("R %d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
+                        printf("Run %d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                     }else{
                         motors[motorIndex]->goToInTurns(dst);
-                        printf("G %d %1.3f %1.3f %4.3f\n", motorIndex, dst, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
+                        printf("GoTo %d %1.3f %1.3f %4.3f\n", motorIndex, dst, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                     }
                 }
             }
@@ -198,6 +195,7 @@ int main(int argc, char** argv) {
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
         motors[motorIndex]->setIdle(false);
     motorDriversActive.setValue(0);
+    socketManager.listen();
 
     return 0;
 }

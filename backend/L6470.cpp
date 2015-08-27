@@ -5,13 +5,13 @@ const size_t driverSteps = 128;
 
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
     :bus(_bus), slaveIndex(_slaveIndex), motorSteps(200) {
-    setParam(L6470::ParamName::ACC, 180); // 138
-    setParam(L6470::ParamName::DEC, 180); // 138
-    setParam(L6470::ParamName::MIN_SPEED, 0);
-    setParam(L6470::ParamName::MAX_SPEED, 50); // 65
-    setParam(L6470::ParamName::FS_SPD, 39);
-    setParam(L6470::ParamName::OCD_TH, 4); // 8
-    setParam(L6470::ParamName::STALL_TH, 50); // 64
+    setParam(ParamName::ACC, 180); // 138
+    setParam(ParamName::DEC, 180); // 138
+    setParam(ParamName::MIN_SPEED, 0);
+    setParam(ParamName::MAX_SPEED, 50); // 65
+    setParam(ParamName::FS_SPD, 39);
+    setParam(ParamName::OCD_TH, 4); // 8
+    setParam(ParamName::STALL_TH, 50); // 64
     resetHome();
     getStatus();
 }
@@ -109,7 +109,11 @@ bool L6470::runInHz(float speed) {
 
 bool L6470::goToInTurns(float position) {
     int64_t dstPos = position*motorSteps*driverSteps;
-    return goTo(dstPos);
+    printf("goToInTurns %016X %016X\n", absPos, dstPos);
+    goTo(dstPos);
+    getParam(ParamName::EL_POS, dstPos);
+    printf(" %016X\n", dstPos);
+    return true;
 }
 
 const char* L6470::getStatus() {
@@ -138,7 +142,7 @@ bool L6470::updatePosition() {
           signMask = wrapAround>>1;
 
     int32_t prevPos = absPos&wrapMask, postPos;
-    if(!getParam(L6470::ParamName::ABS_POS, (uint32_t&)postPos)) return false;
+    if(!getParam(ParamName::ABS_POS, (uint32_t&)postPos)) return false;
     bool signPrev = prevPos&signMask, signPost = postPos&signMask;
     prevPos |= (~wrapMask)*signPrev;
     postPos |= (~wrapMask)*signPost;
@@ -167,7 +171,7 @@ float L6470::getPositionInTurns() {
     return (float)absPos/(motorSteps*driverSteps);
 }
 
-float L6470::isAtPositionInTurns(float position) {
+bool L6470::isAtPositionInTurns(float position) {
     int64_t dstPos = position*motorSteps*driverSteps;
     return (absPos == dstPos);
 }
