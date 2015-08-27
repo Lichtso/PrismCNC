@@ -107,6 +107,10 @@ bool L6470::runInHz(float speed) {
     return run(fabsf(speed/speedFixFactor*motorSteps), speed >= 0);
 }
 
+bool L6470::goTo(float position) {
+    return goTo(position*motorSteps*driverSteps);
+}
+
 const char* L6470::getStatus() {
     uint32_t value;
     if(!resetFlags(value))

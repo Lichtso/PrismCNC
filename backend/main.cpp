@@ -57,7 +57,6 @@ void handleCommand() {
         duration = sqrt(duration);
         printf("handleCommand duration: %f ", duration);
         duration /= speedElement->getValue<float>();
-        duration *= 2.0;
         printf("%f\n", duration);
         dstTime = runLoopNow+std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(duration));
         return;
@@ -136,9 +135,8 @@ int main(int argc, char** argv) {
         for(bool serverRunning = true; serverRunning; ) {
             runLoopNow = std::chrono::system_clock::now();
             std::chrono::duration<float> timeLeft = dstTime-runLoopNow;
-            if(!commands.empty() && timeLeft.count() <= 0)
-                handleCommand();
 
+            float dist = 0.0;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 const char* error = motors[motorIndex]->getStatus();
                 if(error) {
@@ -157,11 +155,23 @@ int main(int argc, char** argv) {
                 }
                 motors[motorIndex]->updatePosition();
                 if(!commands.empty()) {
-                    float speed = (dstPos[motorIndex]-motors[motorIndex]->getPosition())/timeLeft.count();
-                    motors[motorIndex]->runInHz(speed);
-                    printf("%d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPosition());
+                    float diff = dstPos[motorIndex]-motors[motorIndex]->getPosition();
+                    if(timeLeft.count() > 0) {
+                        float speed = diff/timeLeft.count();
+                        motors[motorIndex]->runInHz(speed);
+                        printf("R %d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPosition());
+                    }else{
+                        float pos = dstPos[motorIndex];
+                        motors[motorIndex]->goTo(pos);
+                        printf("G %d %1.3f %1.3f %4.3f\n", motorIndex, pos, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPosition());
+                    }
+                    dist += diff*diff;
                 }
             }
+
+            printf("D %f\n", dist);
+            if(!commands.empty() && dist == 0.0)
+                handleCommand();
 
             std::chrono::duration<float> timeLag = runLoopNow-runLoopLastUpdate;
             if(timeLag.count() > 0.01) {
