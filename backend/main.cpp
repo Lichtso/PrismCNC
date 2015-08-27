@@ -134,7 +134,8 @@ int main(int argc, char** argv) {
         serverSocket->initAsTcpServer("*", 3823);
         while(true) {
             runLoopNow = std::chrono::system_clock::now();
-            std::chrono::duration<float> timeLeft = dstTime-runLoopNow;
+            std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate,
+                                         timeLeft = dstTime-runLoopNow;
 
             float dist = 0.0;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
@@ -171,8 +172,7 @@ int main(int argc, char** argv) {
             if(!commands.empty() && dist == 0.0)
                 handleCommand();
 
-            std::chrono::duration<float> timeLag = runLoopNow-runLoopLastUpdate;
-            if(timeLag.count() > 0.01) {
+            if(networkTimer.count() > 0.01) {
                 runLoopLastUpdate = runLoopNow;
                 for(auto& iter : serverSocket.get()->clients) {
                     netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
