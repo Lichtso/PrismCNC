@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
                 if(!commands.empty()) {
                     float speed = (dstPos[motorIndex]-motors[motorIndex]->getPosition())/timeLeft.count();
                     motors[motorIndex]->runInHz(speed);
-                    printf("%d %f %f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz());
+                    printf("%d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPosition());
                 }
             }
 

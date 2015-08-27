@@ -5,8 +5,8 @@ const size_t driverSteps = 128;
 
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
     :bus(_bus), slaveIndex(_slaveIndex), motorSteps(200) {
-    setParam(L6470::ParamName::ACC, 138);
-    setParam(L6470::ParamName::DEC, 138);
+    setParam(L6470::ParamName::ACC, 200); // 138
+    setParam(L6470::ParamName::DEC, 200); // 138
     setParam(L6470::ParamName::MIN_SPEED, 0);
     setParam(L6470::ParamName::MAX_SPEED, 55); // 65
     setParam(L6470::ParamName::FS_SPD, 39);
