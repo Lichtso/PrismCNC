@@ -10,12 +10,16 @@ std::shared_ptr<netLink::Socket> serverSocket = socketManager.newMsgPackSocket()
 std::queue<std::unique_ptr<MsgPack::Element>> commands;
 std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow, dstTime;
 float srcPos[motorCount], dstPos[motorCount];
-size_t polygonVertex = 0;
-bool speedPhase = true;
+size_t polygonVertex;
+enum Phase {
+    Done_Phase,
+    Run_Phase,
+    GoTo_Phase
+} phase;
 
 void resetCommand() {
     polygonVertex = 0;
-    speedPhase = true;
+    phase = Done_Phase;
 }
 
 void handleCommand() {
@@ -32,6 +36,7 @@ void handleCommand() {
         if(!verticesElement) goto cancel;
         auto verticesVector = verticesElement->getElementsVector();
 
+        phase = Run_Phase;
         if(polygonVertex < verticesVector->size()) {
             auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[polygonVertex].get());
             if(!vertexElement) goto cancel;
@@ -47,11 +52,11 @@ void handleCommand() {
             ++polygonVertex;
         }else{
             printf("LAST VERTEX\n");
-            resetCommand();
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                 motors[motorIndex]->setIdle(false);
             goto cancel;
         }
+
         iter = map.find("speed");
         if(iter == map.end()) goto cancel;
         auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
@@ -67,10 +72,12 @@ void handleCommand() {
     }
 
     cancel:
+    resetCommand();
     commands.pop();
 }
 
 int main(int argc, char** argv) {
+    resetCommand();
     SPI bus(motorCount, 5000000);
     motorDriversActive.setIndex(7);
     motorDriversActive.setMode(1);
@@ -137,10 +144,10 @@ int main(int argc, char** argv) {
         serverSocket->initAsTcpServer("*", 3823);
         while(true) {
             runLoopNow = std::chrono::system_clock::now();
-            bool reachedVertex = !commands.empty();
             std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate,
                                          timeLeft = dstTime-runLoopNow;
 
+            bool reachedVertex = true;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 const char* error = motors[motorIndex]->getStatus();
                 if(error) {
@@ -157,22 +164,27 @@ int main(int argc, char** argv) {
                     goto stopServer;
                 }
                 motors[motorIndex]->updatePosition();
-                if(!commands.empty()) {
-                    float dst = dstPos[motorIndex], diff = dst-motors[motorIndex]->getPositionInTurns();
-                    reachedVertex &= motors[motorIndex]->isAtPositionInTurns(dst);
-                    if(timeLeft.count() > 0.05) {
-                        float speed = diff/timeLeft.count();
-                        motors[motorIndex]->runInHz(speed);
-                    }else if(speedPhase) {
-                        motors[motorIndex]->goToInTurns(dst);
-                        speedPhase = false;
-                    }
-                    printf("Run %d %1.3f %4.3f\n", motorIndex, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
-                }
+                reachedVertex &= motors[motorIndex]->isAtPositionInTurns(dstPos[motorIndex]);
+                printf("%d %1.3f %4.3f\n", motorIndex, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
             }
 
-            if(reachedVertex)
-                handleCommand();
+            switch(phase) {
+                case Run_Phase:
+                    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+                        motors[motorIndex]->runInHz((dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns())/timeLeft.count());
+                    if(timeLeft.count() < 0.05) {
+                        phase = GoTo_Phase;
+                        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+                            motors[motorIndex]->goToInTurns(dst);
+                    }
+                break;
+                case GoTo_Phase:
+                    if(reachedVertex) {
+                        phase = Done_Phase;
+                        handleCommand();
+                    }
+                break;
+            }
 
             if(networkTimer.count() > 0.01) {
                 runLoopLastUpdate = runLoopNow;
