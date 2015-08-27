@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
     runLoopLastUpdate = std::chrono::system_clock::now();
     try {
         serverSocket->initAsTcpServer("*", 3823);
-        for(bool serverRunning = true; serverRunning; ) {
+        while(true) {
             runLoopNow = std::chrono::system_clock::now();
             std::chrono::duration<float> timeLeft = dstTime-runLoopNow;
 
@@ -150,20 +150,18 @@ int main(int argc, char** argv) {
                         msgPackSocket << MsgPack::Factory("message");
                         msgPackSocket << MsgPack::Factory(error);
                     }
-                    serverRunning = false;
-                    break;
+                    goto stopServer;
                 }
                 motors[motorIndex]->updatePosition();
                 if(!commands.empty()) {
                     float diff = dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns();
-                    if(timeLeft.count() > 0) {
+                    if(timeLeft.count() > 0.1) {
                         float speed = diff/timeLeft.count();
                         motors[motorIndex]->runInHz(speed);
                         printf("R %d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                     }else{
-                        float pos = dstPos[motorIndex];
-                        motors[motorIndex]->goToInTurns(pos);
-                        printf("G %d %1.3f %1.3f %4.3f\n", motorIndex, pos, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
+                        motors[motorIndex]->goToInTurns(dstPos[motorIndex]);
+                        printf("G %d %1.3f %1.3f %4.3f\n", motorIndex, dstPos[motorIndex], motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                     }
                     dist += diff*diff;
                 }
@@ -190,6 +188,9 @@ int main(int argc, char** argv) {
                 }
             }
             socketManager.listen();
+
+            continue;
+            stopServer: break;
         }
     }catch(netLink::Exception exc) {
         std::cout << "netLink::Exception " << (int)exc.code << " occured" << std::endl;

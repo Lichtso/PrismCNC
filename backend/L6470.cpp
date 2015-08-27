@@ -5,10 +5,10 @@ const size_t driverSteps = 128;
 
 L6470::L6470(SPI* _bus, size_t _slaveIndex)
     :bus(_bus), slaveIndex(_slaveIndex), motorSteps(200) {
-    setParam(L6470::ParamName::ACC, 200); // 138
-    setParam(L6470::ParamName::DEC, 200); // 138
+    setParam(L6470::ParamName::ACC, 180); // 138
+    setParam(L6470::ParamName::DEC, 180); // 138
     setParam(L6470::ParamName::MIN_SPEED, 0);
-    setParam(L6470::ParamName::MAX_SPEED, 55); // 65
+    setParam(L6470::ParamName::MAX_SPEED, 50); // 65
     setParam(L6470::ParamName::FS_SPD, 39);
     setParam(L6470::ParamName::OCD_TH, 4); // 8
     setParam(L6470::ParamName::STALL_TH, 50); // 64
@@ -108,7 +108,9 @@ bool L6470::runInHz(float speed) {
 }
 
 bool L6470::goToInTurns(float position) {
-    return goTo(position*motorSteps*driverSteps);
+    uint64_t dstPos = position*motorSteps*driverSteps;
+    printf("goToInTurns %d %d\n", absPos, dstPos);
+    return goTo(dstPos);
 }
 
 const char* L6470::getStatus() {
