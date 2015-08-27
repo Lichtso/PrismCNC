@@ -110,11 +110,7 @@ bool L6470::runInHz(float speed) {
 bool L6470::goToInTurns(float position) {
     int64_t dstPos = position*motorSteps*driverSteps;
     printf("goToInTurns %016llX %016llX\n", absPos, dstPos);
-    goTo(dstPos);
-    uint32_t pos;
-    getParam(ParamName::EL_POS, pos);
-    printf(" %016X\n", pos);
-    return true;
+    return goTo(dstPos);
 }
 
 const char* L6470::getStatus() {

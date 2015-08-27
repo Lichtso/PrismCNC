@@ -11,6 +11,12 @@ std::queue<std::unique_ptr<MsgPack::Element>> commands;
 std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow, dstTime;
 float srcPos[motorCount], dstPos[motorCount];
 size_t polygonVertex = 0;
+bool speedPhase = true;
+
+void resetCommand() {
+    polygonVertex = 0;
+    speedPhase = true;
+}
 
 void handleCommand() {
     {
@@ -41,6 +47,7 @@ void handleCommand() {
             ++polygonVertex;
         }else{
             printf("LAST VERTEX\n");
+            resetCommand();
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                 motors[motorIndex]->setIdle(false);
             goto cancel;
@@ -60,9 +67,7 @@ void handleCommand() {
     }
 
     cancel:
-    printf("handleCommand(); cancel\n");
     commands.pop();
-    polygonVertex = 0;
 }
 
 int main(int argc, char** argv) {
@@ -111,6 +116,7 @@ int main(int argc, char** argv) {
             if(!speedElement) return;
             command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
         }else if(type == "stop") {
+            resetCommand();
             while(!commands.empty())
                 commands.pop();
             command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
@@ -157,11 +163,11 @@ int main(int argc, char** argv) {
                     if(timeLeft.count() > 0.05) {
                         float speed = diff/timeLeft.count();
                         motors[motorIndex]->runInHz(speed);
-                        printf("Run %d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
-                    }else{
+                    }else if(speedPhase) {
                         motors[motorIndex]->goToInTurns(dst);
-                        printf("GoTo %d %1.3f %1.3f %4.3f\n", motorIndex, dst, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
+                        speedPhase = false;
                     }
+                    printf("Run %d %1.3f %4.3f\n", motorIndex, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                 }
             }
 
