@@ -109,7 +109,6 @@ bool L6470::runInHz(float speed) {
 
 bool L6470::goToInTurns(float position) {
     int64_t dstPos = position*motorSteps*driverSteps;
-    printf("goToInTurns %lld %lld\n", absPos, dstPos);
     return goTo(dstPos);
 }
 
@@ -158,12 +157,17 @@ bool L6470::updatePosition() {
     return true;
 }
 
-float L6470::getPositionInTurns() {
-    return (float)absPos/(motorSteps*driverSteps);
-}
-
 float L6470::getSpeedInHz() {
     uint32_t speed;
     getParam(ParamName::SPEED, speed);
     return speed*speedFixFactor/motorSteps;
+}
+
+float L6470::getPositionInTurns() {
+    return (float)absPos/(motorSteps*driverSteps);
+}
+
+float L6470::isAtPositionInTurns(float position) {
+    int64_t dstPos = position*motorSteps*driverSteps;
+    return (absPos == dstPos);
 }

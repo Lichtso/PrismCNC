@@ -125,6 +125,7 @@ class L6470 {
     bool goToInTurns(float position);
     const char* getStatus();
     bool updatePosition();
-    float getPositionInTurns();
     float getSpeedInHz();
+    float getPositionInTurns();
+    bool isAtPositionInTurns(float position);
 };

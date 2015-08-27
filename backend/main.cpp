@@ -134,10 +134,10 @@ int main(int argc, char** argv) {
         serverSocket->initAsTcpServer("*", 3823);
         while(true) {
             runLoopNow = std::chrono::system_clock::now();
+            bool posMatch = true;
             std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate,
                                          timeLeft = dstTime-runLoopNow;
 
-            float dist = 0.0;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 const char* error = motors[motorIndex]->getStatus();
                 if(error) {
@@ -154,22 +154,21 @@ int main(int argc, char** argv) {
                     goto stopServer;
                 }
                 motors[motorIndex]->updatePosition();
+                posMatch &= motors[motorIndex]->isAtPositionInTurns(dst);
                 if(!commands.empty()) {
-                    float diff = dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns();
-                    if(timeLeft.count() > 0.1) {
+                    float dst = dstPos[motorIndex], diff = dst-motors[motorIndex]->getPositionInTurns();
+                    if(timeLeft.count() > 0.05) {
                         float speed = diff/timeLeft.count();
                         motors[motorIndex]->runInHz(speed);
                         printf("R %d %1.3f %1.3f %4.3f\n", motorIndex, speed, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                     }else{
-                        motors[motorIndex]->goToInTurns(dstPos[motorIndex]);
-                        printf("G %d %1.3f %1.3f %4.3f\n", motorIndex, dstPos[motorIndex], motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
+                        motors[motorIndex]->goToInTurns(dst);
+                        printf("G %d %1.3f %1.3f %4.3f\n", motorIndex, dst, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
                     }
-                    dist += diff*diff;
                 }
             }
 
-            printf("D %f\n", dist);
-            if(!commands.empty() && dist == 0.0)
+            if(!commands.empty() && posMatch)
                 handleCommand();
 
             if(networkTimer.count() > 0.01) {
@@ -180,7 +179,7 @@ int main(int argc, char** argv) {
                     msgPackSocket << MsgPack::Factory("type");
                     msgPackSocket << MsgPack::Factory("position");
                     msgPackSocket << MsgPack::Factory("timeLag");
-                    msgPackSocket << MsgPack::Factory(timeLag.count());
+                    msgPackSocket << MsgPack::Factory(networkTimer.count());
                     msgPackSocket << MsgPack::Factory("coords");
                     msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
