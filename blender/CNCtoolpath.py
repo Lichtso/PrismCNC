@@ -11,7 +11,7 @@ bl_info = {
 }
 floatFormat = "{:.4f}"
 
-def ToolpathToJSON(obj, speed):
+def ToolpathToJSON(obj, scale, speed):
     resStr = '{\n\t"type": "polygon",\n\t"speed": '+floatFormat.format(speed)+',\n\t"vertices": ['
     mesh = bmesh.new()
     mesh.from_mesh(obj.data)
@@ -34,7 +34,8 @@ def ToolpathToJSON(obj, speed):
             resStr += ','
             if len(vertex.link_edges) > 2:
                 break
-        resStr += '['+floatFormat.format(vertex.co.x)+','+floatFormat.format(vertex.co.y)+','+floatFormat.format(vertex.co.z)+']'
+        pos = vertex.co*scale
+        resStr += '\n\t\t['+floatFormat.format(pos.y)+','+floatFormat.format(-pos.x)+','+floatFormat.format(pos.z)+']'
         if len(vertex.link_edges) < 2:
             break
         for eI, edge in enumerate(vertex.link_edges):
@@ -46,12 +47,14 @@ def ToolpathToJSON(obj, speed):
 
     mesh.to_mesh(obj.data)
     mesh.free()
-    return resStr+']\n}\n'
+    return resStr+'\n\t]\n}\n'
 
 class ExportToolpathOperator(bpy.types.Operator):
     bl_idname = "export_scene.export_toolpath"
     bl_label = "Export Toolpath"
+    filter_glob = bpy.props.StringProperty(default="*.json", options={'HIDDEN'})
     filepath = bpy.props.StringProperty(subtype="FILE_PATH")
+    scaleFactor = bpy.props.FloatProperty(name="Scale", min=0.001, max=1000.0, default=1.0)
 
     @classmethod
     def poll(cls, context):
@@ -62,8 +65,8 @@ class ExportToolpathOperator(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        outFile = open(self.filepath, "w")
-        outFile.write(ToolpathToJSON(context.scene.objects.active, 1.0))
+        outFile = open(bpy.path.ensure_ext(self.filepath, ".json"), "w")
+        outFile.write(ToolpathToJSON(context.scene.objects.active, self.scaleFactor, 1.0))
         outFile.close()
         return {'FINISHED'}
 

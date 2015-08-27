@@ -170,13 +170,13 @@ int main(int argc, char** argv) {
 
             switch(phase) {
                 case Run_Phase:
-                    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                        motors[motorIndex]->runInHz((dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns())/timeLeft.count());
                     if(timeLeft.count() < 0.05) {
                         phase = GoTo_Phase;
                         for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                            motors[motorIndex]->goToInTurns(dst);
-                    }
+                            printf("goToInTurns %d\n", motors[motorIndex]->goToInTurns(dstPos[motorIndex]));
+                    }else
+                        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+                            printf("runInHz %d\n", motors[motorIndex]->runInHz((dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns())/timeLeft.count()));
                 break;
                 case GoTo_Phase:
                     if(reachedVertex) {
