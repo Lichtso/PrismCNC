@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
         serverSocket->initAsTcpServer("*", 3823);
         while(true) {
             runLoopNow = std::chrono::system_clock::now();
-            bool posMatch = true;
+            bool reachedVertex = !commands.empty();
             std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate,
                                          timeLeft = dstTime-runLoopNow;
 
@@ -154,9 +154,9 @@ int main(int argc, char** argv) {
                     goto stopServer;
                 }
                 motors[motorIndex]->updatePosition();
-                posMatch &= motors[motorIndex]->isAtPositionInTurns(dst);
                 if(!commands.empty()) {
                     float dst = dstPos[motorIndex], diff = dst-motors[motorIndex]->getPositionInTurns();
+                    reachedVertex &= motors[motorIndex]->isAtPositionInTurns(dst);
                     if(timeLeft.count() > 0.05) {
                         float speed = diff/timeLeft.count();
                         motors[motorIndex]->runInHz(speed);
@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
                 }
             }
 
-            if(!commands.empty() && posMatch)
+            if(reachedVertex)
                 handleCommand();
 
             if(networkTimer.count() > 0.01) {
