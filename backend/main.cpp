@@ -8,18 +8,13 @@ GPIOpin motorDriversActive;
 netLink::SocketManager socketManager;
 std::shared_ptr<netLink::Socket> serverSocket = socketManager.newMsgPackSocket();
 std::queue<std::unique_ptr<MsgPack::Element>> commands;
-std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow, dstTime;
-float srcPos[motorCount], dstPos[motorCount];
+std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow;
+float targetSpeed, srcPos[motorCount], dstPos[motorCount];
 size_t polygonVertex;
-enum Phase {
-    Done_Phase,
-    Run_Phase,
-    GoTo_Phase
-} phase;
 
 void resetCommand() {
     polygonVertex = 0;
-    phase = Done_Phase;
+    targetSpeed = 0.0;
 }
 
 void handleCommand() {
@@ -35,8 +30,6 @@ void handleCommand() {
         auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
         if(!verticesElement) goto cancel;
         auto verticesVector = verticesElement->getElementsVector();
-
-        phase = Run_Phase;
         if(polygonVertex < verticesVector->size()) {
             auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[polygonVertex].get());
             if(!vertexElement) goto cancel;
@@ -56,18 +49,11 @@ void handleCommand() {
                 motors[motorIndex]->setIdle(false);
             goto cancel;
         }
-
         iter = map.find("speed");
         if(iter == map.end()) goto cancel;
         auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
         if(!speedElement) goto cancel;
-        float duration = 0.0;
-        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-            float diff = dstPos[motorIndex]-srcPos[motorIndex];
-            duration += diff*diff;
-        }
-        duration = sqrt(duration)/speedElement->getValue<float>();
-        dstTime = runLoopNow+std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(duration));
+        targetSpeed = speedElement->getValue<float>();
         return;
     }
 
@@ -144,10 +130,9 @@ int main(int argc, char** argv) {
         serverSocket->initAsTcpServer("*", 3823);
         while(true) {
             runLoopNow = std::chrono::system_clock::now();
-            std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate,
-                                         timeLeft = dstTime-runLoopNow;
+            std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate;
 
-            bool reachedVertex = true;
+            float vecA[motorCount], vecB[motorCount], vecC[motorCount], factorA = 0.0, factorB = 0.0, factorC = 0.0;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 const char* error = motors[motorIndex]->getStatus();
                 if(error) {
@@ -164,26 +149,31 @@ int main(int argc, char** argv) {
                     goto stopServer;
                 }
                 motors[motorIndex]->updatePosition();
-                reachedVertex &= motors[motorIndex]->isAtPositionInTurns(dstPos[motorIndex]);
-                printf("%d %1.3f %4.3f\n", motorIndex, motors[motorIndex]->getSpeedInHz(), motors[motorIndex]->getPositionInTurns());
+                vecA[motorIndex] = dstPos[motorIndex]-srcPos[motorIndex];
+                factorA += vecA[motorIndex]*vecA[motorIndex];
+                vecB[motorIndex] = dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns();
+                factorB += vecB[motorIndex]*vecB[motorIndex];
             }
+            factorA = sqrt(factorA);
+            factorB = sqrt(factorB);
 
-            switch(phase) {
-                case Run_Phase:
-                    if(timeLeft.count() < 0.05) {
-                        phase = GoTo_Phase;
-                        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                            printf("goToInTurns %d\n", motors[motorIndex]->goToInTurns(dstPos[motorIndex]));
-                    }else
-                        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                            printf("runInHz %d\n", motors[motorIndex]->runInHz((dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns())/timeLeft.count()));
-                break;
-                case GoTo_Phase:
-                    if(reachedVertex) {
-                        phase = Done_Phase;
-                        handleCommand();
-                    }
-                break;
+            float t = factorB/factorA;
+            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+                vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*t;
+                vecC[motorIndex] *= 2.0;
+                vecC[motorIndex] += vecB[motorIndex];
+                factorC += vecC[motorIndex]*vecC[motorIndex];
+            }
+            factorC = sqrt(factorC);
+
+            if(factorC < 0.001)
+                handleCommand();
+
+            factorC = targetSpeed*t/factorC; // TODO: Prevent asymptote
+            printf("%f %f\n", t, targetSpeed*t);
+            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+                motors[motorIndex]->runInHz(vecC[motorIndex]*factorC);
+                printf("%d %1.3f %1.3f %1.3f %4.3f\n", motorIndex, vecA[motorIndex], vecB[motorIndex], vecC[motorIndex]*factorC, motors[motorIndex]->getPositionInTurns());
             }
 
             if(networkTimer.count() > 0.01) {
