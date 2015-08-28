@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
             runLoopNow = std::chrono::system_clock::now();
             std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate;
 
-            float vecA[motorCount], vecB[motorCount], vecC[motorCount], factorA = 0.0, factorB = 0.0, factorC = 0.0;
+            float vecA[motorCount], vecB[motorCount], vecC[motorCount], factorA = 0.0, factorB = 0.0;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 const char* error = motors[motorIndex]->getStatus();
                 if(error) {
@@ -154,26 +154,25 @@ int main(int argc, char** argv) {
                 vecB[motorIndex] = dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns();
                 factorB += vecB[motorIndex]*vecB[motorIndex];
             }
-            factorA = sqrt(factorA);
-            factorB = sqrt(factorB);
 
-            float t = factorB/factorA;
+            factorA = sqrt(factorB)/sqrt(factorA);
+            factorB = 0.0;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*t;
+                vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
                 vecC[motorIndex] *= 2.0;
                 vecC[motorIndex] += vecB[motorIndex];
-                factorC += vecC[motorIndex]*vecC[motorIndex];
+                factorB += vecC[motorIndex]*vecC[motorIndex];
             }
-            factorC = sqrt(factorC);
+            factorB = sqrt(factorB);
 
-            if(factorC < 0.001)
+            if(factorB < 0.001)
                 handleCommand();
 
-            factorC = targetSpeed*t/factorC; // TODO: Prevent asymptote
-            printf("%f %f\n", t, targetSpeed*t);
+            factorB = targetSpeed*factorA/factorB; // TODO: Prevent asymptote
+            printf("%f %f\n", factorA, targetSpeed*factorA);
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                motors[motorIndex]->runInHz(vecC[motorIndex]*factorC);
-                printf("%d %1.3f %1.3f %1.3f %4.3f\n", motorIndex, vecA[motorIndex], vecB[motorIndex], vecC[motorIndex]*factorC, motors[motorIndex]->getPositionInTurns());
+                motors[motorIndex]->runInHz(vecC[motorIndex]*factorB);
+                printf("%d %1.3f %1.3f %1.3f %4.3f\n", motorIndex, vecA[motorIndex], vecB[motorIndex], vecC[motorIndex]*factorB, motors[motorIndex]->getPositionInTurns());
             }
 
             if(networkTimer.count() > 0.01) {
