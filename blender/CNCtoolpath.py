@@ -35,7 +35,7 @@ def ToolpathToJSON(obj, scale, speed):
             if len(vertex.link_edges) > 2:
                 break
         pos = vertex.co*scale
-        resStr += '\n\t\t['+floatFormat.format(pos.y)+','+floatFormat.format(-pos.x)+','+floatFormat.format(pos.z)+']'
+        resStr += '\n\t\t['+floatFormat.format(-pos.y)+','+floatFormat.format(-pos.x)+','+floatFormat.format(pos.z)+']'
         if len(vertex.link_edges) < 2:
             break
         for eI, edge in enumerate(vertex.link_edges):
