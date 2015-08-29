@@ -19,7 +19,6 @@ void resetCommand() {
 
 void handleCommand() {
     {
-        printf("handleCommand();\n");
         if(commands.empty()) return;
         auto element = commands.front().get();
         auto mapElement = dynamic_cast<MsgPack::Map*>(element);
@@ -40,11 +39,9 @@ void handleCommand() {
                 if(!scalarElement) goto cancel;
                 srcPos[motorIndex] = (polygonVertex == 0) ? motors[motorIndex]->getPositionInTurns() : dstPos[motorIndex];
                 dstPos[motorIndex] = scalarElement->getValue<float>();
-                printf("NEXT VERTEX %d %d %f %f\n", polygonVertex, motorIndex, srcPos[motorIndex], dstPos[motorIndex]);
             }
             ++polygonVertex;
         }else{
-            printf("LAST VERTEX\n");
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                 motors[motorIndex]->setIdle(false);
             goto cancel;
@@ -166,16 +163,12 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                if(factorB < 0.001)
+                if(factorB < 0.0001)
                     handleCommand();
                 else{
-                    printf("%f ", factorA);
-                    factorA = std::min(1.0, targetSpeed*factorB*10.0+0.01)/factorB;
-                    printf("%f\n", factorA);
-                    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+                    factorB = std::min(targetSpeed, factorB*20.0+0.01)/factorB;
+                    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                         motors[motorIndex]->runInHz(vecC[motorIndex]*factorB);
-                        printf("%d %1.3f %1.3f %1.3f %4.3f\n", motorIndex, vecA[motorIndex], vecB[motorIndex], vecC[motorIndex]*factorB, motors[motorIndex]->getPositionInTurns());
-                    }
                 }
             }
 
@@ -188,6 +181,10 @@ int main(int argc, char** argv) {
                     msgPackSocket << MsgPack::Factory("position");
                     msgPackSocket << MsgPack::Factory("timeLag");
                     msgPackSocket << MsgPack::Factory(networkTimer.count());
+                    if(!commands.empty()) {
+                        msgPackSocket << MsgPack::Factory("polygonVertex");
+                        msgPackSocket << MsgPack::Factory(polygonVertex);
+                    }
                     msgPackSocket << MsgPack::Factory("coords");
                     msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)

@@ -1,5 +1,7 @@
 import bpy
 import bmesh
+import socket
+import msgpack
 
 bl_info = {
     "name": "CNC Toolpath",
@@ -12,7 +14,8 @@ bl_info = {
 floatFormat = "{:.4f}"
 
 def ToolpathToJSON(obj, scale, speed):
-    resStr = '{\n\t"type": "polygon",\n\t"speed": '+floatFormat.format(speed)+',\n\t"vertices": ['
+    result = {"type": "polygon", "speed":speed, "vertices":list()}
+
     mesh = bmesh.new()
     mesh.from_mesh(obj.data)
     mesh.verts.ensure_lookup_table()
@@ -30,12 +33,10 @@ def ToolpathToJSON(obj, scale, speed):
 
     prevVertex = None
     while True:
-        if prevVertex != None:
-            resStr += ','
-            if len(vertex.link_edges) > 2:
-                break
+        if prevVertex != None and len(vertex.link_edges) > 2:
+            break
         pos = vertex.co*scale
-        resStr += '\n\t\t['+floatFormat.format(-pos.y)+','+floatFormat.format(-pos.x)+','+floatFormat.format(pos.z)+']'
+        result["vertices"].append((-pos.y, -pos.x, pos.z))
         if len(vertex.link_edges) < 2:
             break
         for eI, edge in enumerate(vertex.link_edges):
@@ -47,41 +48,30 @@ def ToolpathToJSON(obj, scale, speed):
 
     mesh.to_mesh(obj.data)
     mesh.free()
-    return resStr+'\n\t]\n}\n'
+    return result
 
-class ExportToolpathOperator(bpy.types.Operator):
-    bl_idname = "export_scene.export_toolpath"
-    bl_label = "Export Toolpath"
-    filter_glob = bpy.props.StringProperty(default="*.json", options={'HIDDEN'})
-    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
-    scaleFactor = bpy.props.FloatProperty(name="Scale", min=0.001, max=1000.0, default=1.0)
-
-    @classmethod
-    def poll(cls, context):
-        return context.scene.objects.active is not None
+class SendToolpathOperator(bpy.types.Operator):
+    bl_idname = "object.send_toolpath"
+    bl_label = "Send Toolpath"
+    address = bpy.props.StringProperty(name="IP-Address", default="10.0.1.10")
+    port = bpy.props.StringProperty(name="Port", default="3823")
+    scale = bpy.props.StringProperty(name="Scale", default="1.0")
+    speed = bpy.props.StringProperty(name="Speed", default="1.0")
 
     def invoke(self, context, event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
+        return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        outFile = open(bpy.path.ensure_ext(self.filepath, ".json"), "w")
-        outFile.write(ToolpathToJSON(context.scene.objects.active, self.scaleFactor, 1.0))
-        outFile.close()
-        return {'FINISHED'}
-
-def ExportMenu(self, context):
-    self.layout.operator_context = 'INVOKE_DEFAULT'
-    self.layout.operator(ExportToolpathOperator.bl_idname, text="CNC Toolpath (.json)")
+        packer = msgpack.Packer()
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect((self.address, int(self.port)))
+        client.send(packer.pack(ToolpathToJSON(context.active_object, float(self.scale), float(self.speed))))
+        client.close()
+        return {"FINISHED"}
 
 def register():
-    bpy.utils.register_module(__name__)
-    bpy.types.INFO_MT_file_export.append(ExportMenu)
+    bpy.utils.register_class(SendToolpathOperator)
+    #layout.operator(SendToolpathOperator)
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
-    bpy.types.INFO_MT_file_export.remove(ExportMenu)
-
-if __name__ == "__main__":
-    register()
-    bpy.ops.export_scene.export_toolpath()
+    bpy.utils.unregister_class(SendToolpathOperator)
