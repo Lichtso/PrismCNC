@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
                 factorB = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                     vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
-                    vecC[motorIndex] *= 2.0;
+                    vecC[motorIndex] *= factorA*2.0;
                     vecC[motorIndex] += vecB[motorIndex];
                     factorB += vecC[motorIndex]*vecC[motorIndex];
                 }
@@ -169,8 +169,9 @@ int main(int argc, char** argv) {
                 if(factorB < 0.001)
                     handleCommand();
                 else{
-                    factorB = std::min(1.0, targetSpeed*factorA*50.0+0.1)/factorB; // TODO: Prevent asymptote
-                    printf("%f %f\n", factorA, targetSpeed*factorA);
+                    printf("%f ", factorA);
+                    factorA = std::min(1.0, targetSpeed*factorB*10.0+0.01)/factorB;
+                    printf("%f\n", factorA);
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                         motors[motorIndex]->runInHz(vecC[motorIndex]*factorB);
                         printf("%d %1.3f %1.3f %1.3f %4.3f\n", motorIndex, vecA[motorIndex], vecB[motorIndex], vecC[motorIndex]*factorB, motors[motorIndex]->getPositionInTurns());
