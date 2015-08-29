@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
                 if(factorB < 0.0001)
                     handleCommand();
                 else{
-                    factorB = std::min(targetSpeed, factorB*20.0+0.01)/factorB;
+                    factorB = std::min(targetSpeed, factorB*20.0F+0.01F)/factorB;
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                         motors[motorIndex]->runInHz(vecC[motorIndex]*factorB);
                 }
@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
                     msgPackSocket << MsgPack::Factory(networkTimer.count());
                     if(!commands.empty()) {
                         msgPackSocket << MsgPack::Factory("polygonVertex");
-                        msgPackSocket << MsgPack::Factory(polygonVertex);
+                        msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(polygonVertex));
                     }
                     msgPackSocket << MsgPack::Factory("coords");
                     msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
