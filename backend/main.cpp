@@ -176,15 +176,15 @@ int main(int argc, char** argv) {
                 runLoopLastUpdate = runLoopNow;
                 for(auto& iter : serverSocket.get()->clients) {
                     netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
-                    msgPackSocket << MsgPack__Factory(MapHeader(3));
+                    msgPackSocket << MsgPack__Factory(MapHeader(5));
                     msgPackSocket << MsgPack::Factory("type");
                     msgPackSocket << MsgPack::Factory("position");
                     msgPackSocket << MsgPack::Factory("timeLag");
                     msgPackSocket << MsgPack::Factory(networkTimer.count());
-                    if(!commands.empty()) {
-                        msgPackSocket << MsgPack::Factory("polygonVertex");
-                        msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(polygonVertex));
-                    }
+                    msgPackSocket << MsgPack::Factory("polygonVertex");
+                    msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(polygonVertex));
+                    msgPackSocket << MsgPack::Factory("commandsLeft");
+                    msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(commands.size()));
                     msgPackSocket << MsgPack::Factory("coords");
                     msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
