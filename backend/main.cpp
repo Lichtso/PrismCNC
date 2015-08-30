@@ -95,7 +95,7 @@ void handleCommand() {
                 auto indexElement = dynamic_cast<MsgPack::Number*>(iter->second);
                 if(!indexElement) return;
                 vertexIndex = indexElement->getValue<uint64_t>();
-                printf("vertexIndex %d\n", vertexIndex);
+                printf("vertexIndex %lld\n", vertexIndex);
                 return;
             }else
                 goto cancel;
@@ -156,6 +156,7 @@ int main(int argc, char** argv) {
             interruptCommand();
             return;
         }else if(type == "cancel") {
+            commands.clear();
             stopRunning();
             return;
         }else if(type == "resume") {
@@ -228,15 +229,16 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                float vertexPrecision = (vertexIndex < vertexMaxIndex-1) ? 0.01 : 0.0001;
+                float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
                 printf("vertexPrecision %f %f\n", factorB, vertexPrecision);
                 if(factorB < 0.01)
                     handleCommand();
                 else
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                        float speed = targetSpeed*vecC[motorIndex]/factorB, decelerated = std::min(30.0F, 30.0F/speed)*factorB+0.0001F;
-                        printf("speedOnAxis %d %f %f\n", motorIndex, speed, decelerated);
-                        if(fabsf(decelerated) < fabsf(speed)) speed = decelerated;
+                        float speed = vecC[motorIndex]/factorB;
+                        printf("speedOnAxis %d %f", motorIndex, speed);
+                        speed = std::min(targetSpeed, 30.0F/fabsf(speed)*factorB+0.0001F);
+                        printf(" %f\n", speed);
                         motors[motorIndex]->runInHz(speed);
                     }
             }
