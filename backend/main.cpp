@@ -42,15 +42,15 @@ void interruptCommand() {
     };
 
     std::vector<std::unique_ptr<MsgPack::Element>> vertices;
-    vertices.push_back(std::move(vertexH));
-    vertices.push_back(std::move(vertexL));
+    vertices.emplace_back(MsgPack__Factory(Array(std::move(vertexH)));
+    vertices.emplace_back(MsgPack__Factory(Array(std::move(vertexL)));
 
     std::map<std::string, std::unique_ptr<MsgPack::Element>> map;
     map["type"] = MsgPack::Factory("interrupt");
     map["speed"] = MsgPack::Factory(1.0);
     map["vertexIndex"] = MsgPack::Factory(vertexIndex);
     map["vertices"] = MsgPack__Factory(Array(std::move(vertices)));
-    commands.insert(commands.begin(), MsgPack__Factory(std::move(map)));
+    commands.emplace(commands.begin(), MsgPack__Factory(std::move(map)));
     stopRunning();
 }
 
