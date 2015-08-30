@@ -46,7 +46,7 @@ void interruptCommand() {
     std::map<std::string, std::unique_ptr<MsgPack::Element>> map;
     map["type"] = MsgPack::Factory("interrupt");
     map["speed"] = MsgPack::Factory(1.0);
-    map["vertexIndex"] = MsgPack::Factory(vertexIndex-1);
+    map["vertexIndex"] = MsgPack::Factory(vertexIndex);
     map["vertices"] = MsgPack__Factory(Array(std::move(vertices)));
     commands.emplace(commands.begin(), MsgPack__Factory(Map(std::move(map))));
     stopRunning();
@@ -69,6 +69,7 @@ void handleCommand() {
         auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
         if(!verticesElement) goto cancel;
         auto verticesVector = verticesElement->getElementsVector();
+        running = true;
         vertexEndIndex = verticesVector->size();
         if(vertexIndex < vertexEndIndex) {
             auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[vertexIndex].get());
@@ -145,8 +146,8 @@ int main(int argc, char** argv) {
         auto type = typeElement->stdString();
         if(type == "polygon") {
             commands.push_back(std::move(element));
-            handleCommand();
-            running = true;
+            if(commands.size() == 1)
+                handleCommand();
             return;
         }else if(type == "interrupt") {
             interruptCommand();
@@ -158,7 +159,6 @@ int main(int argc, char** argv) {
             if(!commands.empty()) {
                 for(auto& element : commands)
                     std::cout << *element << std::endl;
-                running = true;
                 handleCommand();
             }
             return;
@@ -228,11 +228,14 @@ int main(int argc, char** argv) {
                 float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
                 if(factorB < vertexPrecision)
                     handleCommand();
-                else{
-                    factorB = std::min(targetSpeed, factorB*30.0F+0.01F)/factorB;
-                    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                        motors[motorIndex]->runInHz(vecC[motorIndex]*factorB);
-                }
+                else
+                    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+                        float speedOnAxis = targetSpeed*vecC[motorIndex]/factorB;
+                        printf("speedOnAxis %d %f ", motorIndex, speedOnAxis);
+                        speedOnAxis = std::min(speedOnAxis, 30.0F/speedOnAxis*factorB+0.01F);
+                        printf("%f\n");
+                        motors[motorIndex]->runInHz(speedOnAxis);
+                    }
             }
 
             if(networkTimer.count() > 0.01) {
