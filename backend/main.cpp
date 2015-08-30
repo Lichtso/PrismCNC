@@ -70,6 +70,11 @@ void handleCommand() {
         auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
         if(!verticesElement) goto cancel;
         auto verticesVector = verticesElement->getElementsVector();
+        iter = map.find("speed");
+        if(iter == map.end()) goto cancel;
+        auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
+        if(!speedElement) goto cancel;
+        targetSpeed = speedElement->getValue<float>();
         running = true;
         vertexEndIndex = verticesVector->size();
         if(vertexIndex < vertexEndIndex) {
@@ -237,7 +242,7 @@ int main(int argc, char** argv) {
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                         float speed = vecC[motorIndex]/factorB;
                         printf("speedOnAxis %d %f", motorIndex, speed);
-                        speed = std::min(targetSpeed, 30.0F/fabsf(speed)*factorB+0.0001F);
+                        speed *= std::min(targetSpeed, 30.0F/fabsf(speed)*factorB+0.0001F);
                         printf(" %f\n", speed);
                         motors[motorIndex]->runInHz(speed);
                     }
