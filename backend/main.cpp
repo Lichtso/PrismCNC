@@ -7,24 +7,63 @@ L6470* motors[motorCount];
 GPIOpin motorDriversActive;
 netLink::SocketManager socketManager;
 std::shared_ptr<netLink::Socket> serverSocket = socketManager.newMsgPackSocket();
-std::queue<std::unique_ptr<MsgPack::Element>> commands;
+std::vector<std::unique_ptr<MsgPack::Element>> commands;
 std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow;
 float targetSpeed, srcPos[motorCount], dstPos[motorCount];
 uint64_t vertexIndex, vertexEndIndex;
+bool running = false;
 
 void resetCommand() {
     vertexIndex = vertexEndIndex = 0;
     targetSpeed = 0.0;
 }
 
+void stopRunning() {
+    resetCommand();
+    running = false;
+    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+        motors[motorIndex]->setIdle(false);
+}
+
+void interruptCommand() {
+    if(commands.empty()) return;
+    float height = 50.0;
+
+    std::vector<std::unique_ptr<Element>> vertexH {
+        MsgPack::Factory(srcPos[0]),
+        MsgPack::Factory(srcPos[1]+height),
+        MsgPack::Factory(srcPos[2])
+    };
+
+    std::vector<std::unique_ptr<Element>> vertexL {
+        MsgPack::Factory(srcPos[0]),
+        MsgPack::Factory(srcPos[1]),
+        MsgPack::Factory(srcPos[2])
+    };
+
+    std::vector<std::unique_ptr<Element>> vertices { vertexH, vertexL };
+    std::map<std::string, std::unique_ptr<Element>> map;
+    map["type"] = MsgPack::Factory("interrupt");
+    map["speed"] = MsgPack::Factory(1.0);
+    map["vertexIndex"] = MsgPack::Factory(vertexIndex);
+    map["vertices"] = MsgPack__Factory(Array(vertices));
+    commands.insert(commands.begin(), MsgPack__Factory(std::move(map)));
+    stopRunning();
+}
+
 void handleCommand() {
     {
-        if(commands.empty()) return;
-        auto element = commands.front().get();
+        if(commands.empty()) goto cancel;
+        auto element = commands.begin().get();
         auto mapElement = dynamic_cast<MsgPack::Map*>(element);
         if(!mapElement) goto cancel;
         auto map = mapElement->getElementsMap();
-        auto iter = map.find("vertices");
+        auto iter = map.find("type");
+        if(iter == map.end()) return;
+        auto typeElement = dynamic_cast<MsgPack::String*>(iter->second);
+        if(!typeElement) return;
+        auto type = typeElement->stdString();
+        iter = map.find("vertices");
         if(iter == map.end()) goto cancel;
         auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
         if(!verticesElement) goto cancel;
@@ -43,9 +82,18 @@ void handleCommand() {
             }
             ++vertexIndex;
         }else{
-            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                motors[motorIndex]->setIdle(false);
-            goto cancel;
+            if(type == "polygon") {
+                goto cancel;
+            }else if(type == "interrupt") {
+                if(commands.size() == 1)
+                    goto cancel;
+                iter = map.find("vertexIndex");
+                if(iter == map.end()) return;
+                auto indexElement = dynamic_cast<MsgPack::Number*>(iter->second);
+                if(!indexElement) return;
+                vertexIndex = scalarElement->getValue<uint64_t>();
+                return;
+            }
         }
         iter = map.find("speed");
         if(iter == map.end()) goto cancel;
@@ -56,8 +104,10 @@ void handleCommand() {
     }
 
     cancel:
+    commands.erase(commands.begin());
     resetCommand();
-    commands.pop();
+    if(commands.empty())
+        stopRunning();
 }
 
 int main(int argc, char** argv) {
@@ -94,22 +144,29 @@ int main(int argc, char** argv) {
         if(!typeElement) return;
         auto type = typeElement->stdString();
         if(type == "polygon") {
-            commands.push(std::move(element));
+            commands.push_back(std::move(element));
             handleCommand();
+            running = true;
+            return;
+        }else if(type == "interrupt") {
+            interruptCommand();
+            return;
+        }else if(type == "resume") {
+            if(!commands.empty())
+                running = true;
             return;
         }
         std::function<bool(L6470*)> command;
         if(type == "run") {
-            if(!commands.empty()) return;
+            if(running) return;
             iter = map.find("speed");
             if(iter == map.end()) return;
             auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!speedElement) return;
             command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
         }else if(type == "stop") {
-            resetCommand();
-            while(!commands.empty())
-                commands.pop();
+            stopRunning();
+            commands.clear();
             command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
         }else return;
         iter = map.find("motor");
@@ -127,6 +184,7 @@ int main(int argc, char** argv) {
     try {
         serverSocket->initAsTcpServer("*", 3823);
         while(true) {
+            mainLoopBegin:
             runLoopNow = std::chrono::system_clock::now();
             std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate;
 
@@ -144,7 +202,8 @@ int main(int argc, char** argv) {
                         msgPackSocket << MsgPack::Factory("message");
                         msgPackSocket << MsgPack::Factory(error);
                     }
-                    goto stopServer;
+                    interruptCommand();
+                    goto mainLoopBegin;
                 }
                 motors[motorIndex]->updatePosition();
                 vecA[motorIndex] = dstPos[motorIndex]-srcPos[motorIndex];
@@ -153,7 +212,7 @@ int main(int argc, char** argv) {
                 factorB += vecB[motorIndex]*vecB[motorIndex];
             }
 
-            if(!commands.empty()) {
+            if(running) {
                 factorA = sqrt(factorB)/sqrt(factorA);
                 factorB = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
@@ -168,7 +227,7 @@ int main(int argc, char** argv) {
                 if(factorB < vertexPrecision)
                     handleCommand();
                 else{
-                    factorB = std::min(targetSpeed, factorB*(30.0F/targetSpeed)+0.01F)/factorB;
+                    factorB = std::min(targetSpeed, factorB*30.0F+0.01F)/factorB;
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                         motors[motorIndex]->runInHz(vecC[motorIndex]*factorB);
                 }
@@ -194,9 +253,6 @@ int main(int argc, char** argv) {
                 }
             }
             socketManager.listen();
-
-            continue;
-            stopServer: break;
         }
     }catch(netLink::Exception exc) {
         std::cout << "netLink::Exception " << (int)exc.code << " occured" << std::endl;
