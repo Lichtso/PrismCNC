@@ -219,18 +219,19 @@ int main(int argc, char** argv) {
                 factorB = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                     vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
-                    vecC[motorIndex] *= 2.0;
+                    vecC[motorIndex] *= factorB*2.0;
                     vecC[motorIndex] += vecB[motorIndex];
                     factorB += vecC[motorIndex]*vecC[motorIndex];
                 }
                 factorB = sqrt(factorB);
 
                 float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
+                printf("vertexPrecision %f %f\n", factorB, vertexPrecision);
                 if(factorB < vertexPrecision)
                     handleCommand();
                 else
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                        float speed = targetSpeed*vecC[motorIndex]/factorB, decelerated = 30.0F/speed*factorB+0.01F;
+                        float speed = targetSpeed*vecC[motorIndex]/factorB, decelerated = 30.0F/speed*factorB+0.001F;
                         printf("speedOnAxis %d %f %f\n", motorIndex, speed, decelerated);
                         if(fabsf(decelerated) < fabsf(speed)) speed = decelerated;
                         motors[motorIndex]->runInHz(speed);
