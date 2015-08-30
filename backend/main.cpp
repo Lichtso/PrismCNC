@@ -49,7 +49,7 @@ void interruptCommand() {
     std::map<std::string, std::unique_ptr<MsgPack::Element>> map;
     map["type"] = MsgPack::Factory("interrupt");
     map["speed"] = MsgPack::Factory(1.0);
-    map["vertexIndex"] = MsgPack::Factory(vertexIndex);
+    map["vertexIndex"] = MsgPack::Factory(vertexIndex-1);
     map["vertices"] = MsgPack__Factory(Array(std::move(vertices)));
     commands.emplace(commands.begin(), MsgPack__Factory(Map(std::move(map))));
     stopRunning();
@@ -155,8 +155,10 @@ int main(int argc, char** argv) {
             interruptCommand();
             return;
         }else if(type == "resume") {
-            if(!commands.empty())
+            if(!commands.empty()) {
                 running = true;
+                handleCommand();
+            }
             return;
         }
         std::function<bool(L6470*)> command;
@@ -236,7 +238,7 @@ int main(int argc, char** argv) {
             }
 
             if(networkTimer.count() > 0.01) {
-                printf("running %d\n", running);
+                printf("running %d %f %f %f\n", running, dstPos[0], dstPos[1], dstPos[2]);
                 runLoopLastUpdate = runLoopNow;
                 for(auto& iter : serverSocket.get()->clients) {
                     netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
