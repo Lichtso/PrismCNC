@@ -58,15 +58,22 @@ class SendToolpathOperator(bpy.types.Operator):
     scale = bpy.props.StringProperty(name="Scale", default="1.0")
     speed = bpy.props.StringProperty(name="Speed", default="1.0")
 
+    @classmethod
+    def poll(cls, context):
+        return context.active_object != None and context.active_object.mode == "OBJECT"
+
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
-        packer = msgpack.Packer()
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((self.address, int(self.port)))
-        client.send(packer.pack(ToolpathToJSON(context.active_object, float(self.scale), float(self.speed))))
-        client.close()
+        try:
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client.settimeout(1)
+            client.connect((self.address, int(self.port)))
+            client.send(msgpack.Packer().pack(ToolpathToJSON(context.active_object, float(self.scale), float(self.speed))))
+            client.close()
+        except socket.error as error:
+            self.report({"ERROR"}, "Could not connect: "+str(error))
         return {"FINISHED"}
 
 def register():
