@@ -29,20 +29,20 @@ void interruptCommand() {
     if(commands.empty()) return;
     float height = 50.0;
 
-    std::vector<std::unique_ptr<Element>> vertexH {
+    std::vector<std::unique_ptr<MsgPack::Element>> vertexH {
         MsgPack::Factory(srcPos[0]),
         MsgPack::Factory(srcPos[1]+height),
         MsgPack::Factory(srcPos[2])
     };
 
-    std::vector<std::unique_ptr<Element>> vertexL {
+    std::vector<std::unique_ptr<MsgPack::Element>> vertexL {
         MsgPack::Factory(srcPos[0]),
         MsgPack::Factory(srcPos[1]),
         MsgPack::Factory(srcPos[2])
     };
 
-    std::vector<std::unique_ptr<Element>> vertices { vertexH, vertexL };
-    std::map<std::string, std::unique_ptr<Element>> map;
+    std::vector<std::unique_ptr<MsgPack::Element>> vertices { std::move(vertexH), std::move(vertexL) };
+    std::map<std::string, std::unique_ptr<MsgPack::Element>> map;
     map["type"] = MsgPack::Factory("interrupt");
     map["speed"] = MsgPack::Factory(1.0);
     map["vertexIndex"] = MsgPack::Factory(vertexIndex);
@@ -54,7 +54,7 @@ void interruptCommand() {
 void handleCommand() {
     {
         if(commands.empty()) goto cancel;
-        auto element = commands.begin().get();
+        auto element = commands.begin()->get();
         auto mapElement = dynamic_cast<MsgPack::Map*>(element);
         if(!mapElement) goto cancel;
         auto map = mapElement->getElementsMap();
@@ -82,9 +82,7 @@ void handleCommand() {
             }
             ++vertexIndex;
         }else{
-            if(type == "polygon") {
-                goto cancel;
-            }else if(type == "interrupt") {
+            if(type == "interrupt") {
                 if(commands.size() == 1)
                     goto cancel;
                 iter = map.find("vertexIndex");
@@ -93,7 +91,8 @@ void handleCommand() {
                 if(!indexElement) return;
                 vertexIndex = scalarElement->getValue<uint64_t>();
                 return;
-            }
+            }else
+                goto cancel;
         }
         iter = map.find("speed");
         if(iter == map.end()) goto cancel;
