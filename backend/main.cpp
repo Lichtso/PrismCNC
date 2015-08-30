@@ -53,7 +53,6 @@ void interruptCommand() {
 }
 
 void handleCommand() {
-    printf("handleCommand()\n");
     {
         if(commands.empty()) goto cancel;
         auto element = commands.begin()->get();
@@ -90,9 +89,7 @@ void handleCommand() {
             }
             ++vertexIndex;
         }else{
-            printf("last vertex %d\n", commands.size());
             if(type == "interrupt") {
-                printf("interrupt\n");
                 if(commands.size() == 1)
                     goto cancel;
                 iter = map.find("vertexIndex");
@@ -100,7 +97,7 @@ void handleCommand() {
                 auto indexElement = dynamic_cast<MsgPack::Number*>(iter->second);
                 if(!indexElement) return;
                 vertexIndex = indexElement->getValue<uint64_t>();
-                printf("vertexIndex %lld\n", vertexIndex);
+                commands.erase(commands.begin());
                 return;
             }else
                 goto cancel;
@@ -110,13 +107,10 @@ void handleCommand() {
     }
 
     cancel:
-    printf("cancel\n");
     commands.erase(commands.begin());
     resetCommand();
-    if(commands.empty()) {
-        printf("stopRunning\n");
+    if(commands.empty())
         stopRunning();
-    }
 }
 
 int main(int argc, char** argv) {
@@ -234,7 +228,7 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
+                float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.001 : 0.0001;
                 printf("vertexPrecision %f %f\n", factorB, vertexPrecision);
                 if(factorB < 0.01)
                     handleCommand();
