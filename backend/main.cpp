@@ -29,17 +29,15 @@ void interruptCommand() {
     if(commands.empty()) return;
     float height = 50.0;
 
-    std::vector<std::unique_ptr<MsgPack::Element>> vertexH {
-        MsgPack::Factory(srcPos[0]),
-        MsgPack::Factory(srcPos[1]+height),
-        MsgPack::Factory(srcPos[2])
-    };
+    std::vector<std::unique_ptr<MsgPack::Element>> vertexH;
+    vertexH.emplace_back(MsgPack::Factory(srcPos[0]));
+    vertexH.emplace_back(MsgPack::Factory(srcPos[1]+height));
+    vertexH.emplace_back(MsgPack::Factory(srcPos[2]));
 
-    std::vector<std::unique_ptr<MsgPack::Element>> vertexL {
-        MsgPack::Factory(srcPos[0]),
-        MsgPack::Factory(srcPos[1]),
-        MsgPack::Factory(srcPos[2])
-    };
+    std::vector<std::unique_ptr<MsgPack::Element>> vertexL;
+    vertexL.emplace_back(MsgPack::Factory(srcPos[0]));
+    vertexL.emplace_back(MsgPack::Factory(srcPos[1]));
+    vertexL.emplace_back(MsgPack::Factory(srcPos[2]));
 
     std::vector<std::unique_ptr<MsgPack::Element>> vertices;
     vertices.emplace_back(MsgPack__Factory(Array(std::move(vertexH))));
@@ -50,7 +48,7 @@ void interruptCommand() {
     map["speed"] = MsgPack::Factory(1.0);
     map["vertexIndex"] = MsgPack::Factory(vertexIndex);
     map["vertices"] = MsgPack__Factory(Array(std::move(vertices)));
-    auto mapElement = MsgPack__Factory(Map(std::move(map));
+    auto mapElement = MsgPack__Factory(Map(std::move(map)));
     commands.insert(commands.begin(), std::move(mapElement));
     stopRunning();
 }
