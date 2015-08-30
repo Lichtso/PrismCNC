@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
                 factorB = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                     vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
-                    vecC[motorIndex] *= factorA*2.0;
+                    vecC[motorIndex] *= 2.0;
                     vecC[motorIndex] += vecB[motorIndex];
                     factorB += vecC[motorIndex]*vecC[motorIndex];
                 }
@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
                 if(factorB < vertexPrecision)
                     handleCommand();
                 else{
-                    factorB = std::min(targetSpeed, factorB*15.0F+0.01F)/factorB;
+                    factorB = std::min(targetSpeed, factorB*(30.0F/targetSpeed)+0.01F)/factorB;
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                         motors[motorIndex]->runInHz(vecC[motorIndex]*factorB);
                 }
@@ -183,8 +183,8 @@ int main(int argc, char** argv) {
                     msgPackSocket << MsgPack::Factory("position");
                     msgPackSocket << MsgPack::Factory("vertexIndex");
                     msgPackSocket << MsgPack::Factory(vertexIndex);
-                    msgPackSocket << MsgPack::Factory("vertexMaxIndex");
-                    msgPackSocket << MsgPack::Factory(vertexMaxIndex);
+                    msgPackSocket << MsgPack::Factory("vertexEndIndex");
+                    msgPackSocket << MsgPack::Factory(vertexEndIndex);
                     msgPackSocket << MsgPack::Factory("commandsLeft");
                     msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(commands.size()));
                     msgPackSocket << MsgPack::Factory("coords");
