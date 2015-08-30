@@ -27,7 +27,7 @@ void stopRunning() {
 
 void interruptCommand() {
     if(!running) return;
-    float height = 50.0;
+    float height = 20.0;
 
     std::vector<std::unique_ptr<MsgPack::Element>> vertexH;
     vertexH.emplace_back(MsgPack::Factory(srcPos[0]));
@@ -151,10 +151,13 @@ int main(int argc, char** argv) {
         }else if(type == "interrupt") {
             interruptCommand();
             return;
+        }else if(type == "cancel") {
+            stopRunning();
+            return;
         }else if(type == "resume") {
             if(!commands.empty()) {
-                for(auto iter : commands)
-                    std::cout << *(iter->get()) << std::endl;
+                for(auto& element : commands)
+                    std::cout << *element << std::endl;
                 running = true;
                 handleCommand();
             }
@@ -168,10 +171,6 @@ int main(int argc, char** argv) {
             auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
             if(!speedElement) return;
             command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
-        }else if(type == "stop") {
-            stopRunning();
-            commands.clear();
-            command = std::bind(&L6470::setIdle, std::placeholders::_1, false);
         }else return;
         iter = map.find("motor");
         if(iter != map.end()) {
