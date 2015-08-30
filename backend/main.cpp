@@ -10,10 +10,10 @@ std::shared_ptr<netLink::Socket> serverSocket = socketManager.newMsgPackSocket()
 std::queue<std::unique_ptr<MsgPack::Element>> commands;
 std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow;
 float targetSpeed, srcPos[motorCount], dstPos[motorCount];
-size_t polygonVertex;
+uint64_t vertexIndex, vertexEndIndex;
 
 void resetCommand() {
-    polygonVertex = 0;
+    vertexIndex = vertexEndIndex = 0;
     targetSpeed = 0.0;
 }
 
@@ -29,18 +29,19 @@ void handleCommand() {
         auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
         if(!verticesElement) goto cancel;
         auto verticesVector = verticesElement->getElementsVector();
-        if(polygonVertex < verticesVector->size()) {
-            auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[polygonVertex].get());
+        vertexEndIndex = verticesVector->size();
+        if(vertexIndex < vertexEndIndex) {
+            auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[vertexIndex].get());
             if(!vertexElement) goto cancel;
             auto vertexVector = vertexElement->getElementsVector();
             if(vertexVector->size() != motorCount) goto cancel;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                 auto scalarElement = dynamic_cast<MsgPack::Number*>((*vertexVector)[motorIndex].get());
                 if(!scalarElement) goto cancel;
-                srcPos[motorIndex] = (polygonVertex == 0) ? motors[motorIndex]->getPositionInTurns() : dstPos[motorIndex];
+                srcPos[motorIndex] = (vertexIndex == 0) ? motors[motorIndex]->getPositionInTurns() : dstPos[motorIndex];
                 dstPos[motorIndex] = scalarElement->getValue<float>();
             }
-            ++polygonVertex;
+            ++vertexIndex;
         }else{
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                 motors[motorIndex]->setIdle(false);
@@ -137,7 +138,7 @@ int main(int argc, char** argv) {
                         netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
                         msgPackSocket << MsgPack__Factory(MapHeader(3));
                         msgPackSocket << MsgPack::Factory("type");
-                        msgPackSocket << MsgPack::Factory("error");
+                        msgPackSocket << MsgPack::Factory("exception");
                         msgPackSocket << MsgPack::Factory("motor");
                         msgPackSocket << MsgPack::Factory((uint64_t)motorIndex);
                         msgPackSocket << MsgPack::Factory("message");
@@ -163,10 +164,11 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                if(factorB < 0.0001)
+                float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
+                if(factorB < vertexPrecision)
                     handleCommand();
                 else{
-                    factorB = std::min(targetSpeed, factorB*20.0F+0.01F)/factorB;
+                    factorB = std::min(targetSpeed, factorB*15.0F+0.01F)/factorB;
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                         motors[motorIndex]->runInHz(vecC[motorIndex]*factorB);
                 }
@@ -179,10 +181,10 @@ int main(int argc, char** argv) {
                     msgPackSocket << MsgPack__Factory(MapHeader(5));
                     msgPackSocket << MsgPack::Factory("type");
                     msgPackSocket << MsgPack::Factory("position");
-                    msgPackSocket << MsgPack::Factory("timeLag");
-                    msgPackSocket << MsgPack::Factory(networkTimer.count());
-                    msgPackSocket << MsgPack::Factory("polygonVertex");
-                    msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(polygonVertex));
+                    msgPackSocket << MsgPack::Factory("vertexIndex");
+                    msgPackSocket << MsgPack::Factory(vertexIndex);
+                    msgPackSocket << MsgPack::Factory("vertexMaxIndex");
+                    msgPackSocket << MsgPack::Factory(vertexMaxIndex);
                     msgPackSocket << MsgPack::Factory("commandsLeft");
                     msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(commands.size()));
                     msgPackSocket << MsgPack::Factory("coords");
