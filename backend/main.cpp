@@ -53,6 +53,7 @@ void interruptCommand() {
 }
 
 void handleCommand() {
+    printf("handleCommand()\n");
     {
         if(commands.empty()) goto cancel;
         auto element = commands.begin()->get();
@@ -84,6 +85,7 @@ void handleCommand() {
             }
             ++vertexIndex;
         }else{
+            printf("last vertex\n");
             if(type == "interrupt") {
                 if(commands.size() == 1)
                     goto cancel;
@@ -105,10 +107,13 @@ void handleCommand() {
     }
 
     cancel:
+    printf("cancel\n");
     commands.erase(commands.begin());
     resetCommand();
-    if(commands.empty())
+    if(commands.empty()) {
+        printf("stopRunning\n");
         stopRunning();
+    }
 }
 
 int main(int argc, char** argv) {
@@ -225,13 +230,13 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
+                float vertexPrecision = (vertexIndex == 0) ? 0.01 : 0.0001;
                 printf("vertexPrecision %f %f\n", factorB, vertexPrecision);
                 if(factorB < vertexPrecision)
                     handleCommand();
                 else
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                        float speed = targetSpeed*vecC[motorIndex]/factorB, decelerated = 30.0F/speed*factorB+0.001F;
+                        float speed = targetSpeed*vecC[motorIndex]/factorB, decelerated = std::min(30.0F, 20.0F/speed)*factorB+0.001F;
                         printf("speedOnAxis %d %f %f\n", motorIndex, speed, decelerated);
                         if(fabsf(decelerated) < fabsf(speed)) speed = decelerated;
                         motors[motorIndex]->runInHz(speed);
@@ -239,6 +244,7 @@ int main(int argc, char** argv) {
             }
 
             if(networkTimer.count() > 0.01) {
+                printf("commandsLeft %d\n", commandsLeft.size());
                 runLoopLastUpdate = runLoopNow;
                 for(auto& iter : serverSocket.get()->clients) {
                     netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
