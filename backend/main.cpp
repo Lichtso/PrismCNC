@@ -14,11 +14,13 @@ uint64_t vertexIndex, vertexEndIndex;
 bool running = false;
 
 void resetCommand() {
+    printf("resetCommand\n");
     vertexIndex = vertexEndIndex = 0;
     targetSpeed = 0.0;
 }
 
 void stopRunning() {
+    printf("stopRunning\n");
     resetCommand();
     running = false;
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
@@ -26,7 +28,8 @@ void stopRunning() {
 }
 
 void interruptCommand() {
-    if(commands.empty()) return;
+    if(!running) return;
+    printf("interruptCommand\n");
     float height = 50.0;
 
     std::vector<std::unique_ptr<MsgPack::Element>> vertexH;
@@ -48,8 +51,7 @@ void interruptCommand() {
     map["speed"] = MsgPack::Factory(1.0);
     map["vertexIndex"] = MsgPack::Factory(vertexIndex);
     map["vertices"] = MsgPack__Factory(Array(std::move(vertices)));
-    auto mapElement = MsgPack__Factory(Map(std::move(map)));
-    commands.insert(commands.begin(), std::move(mapElement));
+    commands.emplace(commands.begin(), MsgPack__Factory(Map(std::move(map))));
     stopRunning();
 }
 
@@ -185,7 +187,6 @@ int main(int argc, char** argv) {
     try {
         serverSocket->initAsTcpServer("*", 3823);
         while(true) {
-            mainLoopBegin:
             runLoopNow = std::chrono::system_clock::now();
             std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate;
 
@@ -204,7 +205,7 @@ int main(int argc, char** argv) {
                         msgPackSocket << MsgPack::Factory(error);
                     }
                     interruptCommand();
-                    goto mainLoopBegin;
+                    motors[motorIndex]->setIdle(false);
                 }
                 motors[motorIndex]->updatePosition();
                 vecA[motorIndex] = dstPos[motorIndex]-srcPos[motorIndex];
@@ -235,6 +236,7 @@ int main(int argc, char** argv) {
             }
 
             if(networkTimer.count() > 0.01) {
+                printf("running %d\n", running);
                 runLoopLastUpdate = runLoopNow;
                 for(auto& iter : serverSocket.get()->clients) {
                     netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
