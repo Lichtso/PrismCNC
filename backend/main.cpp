@@ -228,22 +228,21 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.001 : 0.0001;
+                float vertexPrecision = (vertexIndex == 0) ? 0.01 : 0.0001;
                 printf("vertexPrecision %f %f\n", factorB, vertexPrecision);
-                if(factorB < 0.01)
+                if(factorB < vertexPrecision)
                     handleCommand();
                 else
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                         float speed = vecC[motorIndex]/factorB;
                         printf("speedOnAxis %d %f", motorIndex, speed);
-                        speed *= std::min(targetSpeed, 30.0F/fabsf(speed)*factorB+0.0001F);
+                        speed *= std::min(targetSpeed, 20.0F/fabsf(speed)*factorB+0.0001F);
                         printf(" %f\n", speed);
                         motors[motorIndex]->runInHz(speed);
                     }
             }
 
             if(networkTimer.count() > 0.01) {
-                printf("commandsLeft %d\n", commands.size());
                 runLoopLastUpdate = runLoopNow;
                 for(auto& iter : serverSocket.get()->clients) {
                     netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
