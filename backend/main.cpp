@@ -228,7 +228,8 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                if(factorB < 0.001)
+                float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
+                if(factorB < vertexPrecision)
                     handleCommand();
                 else
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
