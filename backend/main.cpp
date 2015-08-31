@@ -222,22 +222,19 @@ int main(int argc, char** argv) {
                 factorB = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                     vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
-                    vecC[motorIndex] *= factorA*2.0;
+                    vecC[motorIndex] *= 2.0;
                     vecC[motorIndex] += vecB[motorIndex];
                     factorB += vecC[motorIndex]*vecC[motorIndex];
                 }
                 factorB = sqrt(factorB);
 
-                float vertexPrecision = (vertexIndex == 0) ? 0.01 : 0.0001;
-                printf("vertexPrecision %f %f\n", factorB, vertexPrecision);
-                if(factorB < vertexPrecision)
+                if(factorB < 0.001)
                     handleCommand();
                 else
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                         float directedSpeed = targetSpeed*vecC[motorIndex]/factorB, absSpeed = fabsf(directedSpeed);
-                        factorA = std::min(1.0F, factorB/(absSpeed*absSpeed*absSpeed*0.01F))+0.001F;
+                        factorA = std::min(1.0F, factorB/(absSpeed*absSpeed*0.07F));
                         motors[motorIndex]->runInHz(directedSpeed*factorA);
-                        printf("speedOnAxis %d %f %f\n", motorIndex, directedSpeed, factorA);
                     }
             }
 
