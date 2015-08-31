@@ -234,11 +234,10 @@ int main(int argc, char** argv) {
                     handleCommand();
                 else
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                        float speed = targetSpeed*vecC[motorIndex]/factorB;
-                        factorA = std::min(1.0F, factorB/(speed*speed*speed*0.01F))+0.001F;
-                        speed *= factorA;
-                        motors[motorIndex]->runInHz(speed);
-                        printf("speedOnAxis %d %f %f\n", motorIndex, speed, factorA);
+                        float directedSpeed = targetSpeed*vecC[motorIndex]/factorB, absSpeed = fabsf(directedSpeed);
+                        factorA = std::min(1.0F, factorB/(absSpeed*absSpeed*absSpeed*0.01F))+0.001F;
+                        motors[motorIndex]->runInHz(directedSpeed*factorA);
+                        printf("speedOnAxis %d %f %f\n", motorIndex, directedSpeed, factorA);
                     }
             }
 
