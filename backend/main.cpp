@@ -222,7 +222,7 @@ int main(int argc, char** argv) {
                 factorB = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                     vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
-                    vecC[motorIndex] *= factorB*2.0;
+                    vecC[motorIndex] *= factorA*2.0;
                     vecC[motorIndex] += vecB[motorIndex];
                     factorB += vecC[motorIndex]*vecC[motorIndex];
                 }
@@ -232,14 +232,17 @@ int main(int argc, char** argv) {
                 printf("vertexPrecision %f %f\n", factorB, vertexPrecision);
                 if(factorB < vertexPrecision)
                     handleCommand();
-                else
+                else{
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                        float speed = vecC[motorIndex]/factorB;
-                        printf("speedOnAxis %d %f", motorIndex, speed);
-                        speed *= std::min(targetSpeed, 20.0F/fabsf(speed)*factorB+0.0001F);
+                        factorA = std::min(1.0, factorB/2.0);
+                        factorA = factorA*factorA*(3.0-2.0*factorA);
+                        float speed = targetSpeed*vecC[motorIndex]/factorB;
+                        printf("speedOnAxis %d %f %f", motorIndex, speed, factorA);
+                        speed *= factorA;
                         printf(" %f\n", speed);
                         motors[motorIndex]->runInHz(speed);
                     }
+                }
             }
 
             if(networkTimer.count() > 0.01) {
