@@ -1,12 +1,17 @@
 # PrismCNC
 Free 3 axis CNC project
 
+
+
 Software:
 The backend is written in C++11, the frontend in JavaScript and a supporting [Blender](https://www.blender.org) plugin in Python
 
+
+
 Example hardware implementation:
+
 Euro    | Dollar  | Name and Link
--------:|--------:|--------------------
+------- | ------- | -------------------
 255.00€ | $285.43 | [Miller](http://www.sorotec.de/shop/Proxxon/Proxxon-Micromot/MICRO-miller-MF-70.html)
 135.00€ | $151.11 | [Motors](http://www.ebay.com/itm/321694294053)
 49.99€  | $55.96  | [Mainboard](http://www.conrad.de/ce/de/product/1274214/pcDuino-V3-nano-Einplatinencomputer-Linux-Ubuntu-Version-1204-Arduino-I-D-E)
