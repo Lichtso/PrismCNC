@@ -1,5 +1,6 @@
 #include "L6470.h"
 #include <chrono>
+#include <signal.h>
 #include <netLink/netLink.h>
 
 const size_t motorCount = 3;
@@ -113,7 +114,16 @@ void handleCommand() {
         stopRunning();
 }
 
+void onExit(int sig) {
+    printf("onExit\n");
+    stopRunning();
+    motorDriversActive.setValue(0);
+    socketManager.listen();
+}
+
 int main(int argc, char** argv) {
+    signal(SIGTERM, onExit);
+
     SPI bus(motorCount, 5000000);
     motorDriversActive.setIndex(7);
     motorDriversActive.setMode(1);
@@ -224,15 +234,17 @@ int main(int argc, char** argv) {
             if(running) {
                 factorA = sqrt(factorB)/sqrt(factorA);
                 factorB = 0.0;
+                float errorInDir = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                     vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
                     vecC[motorIndex] *= 2.0;
                     vecC[motorIndex] += vecB[motorIndex];
                     factorB += vecC[motorIndex]*vecC[motorIndex];
+                    errorInDir += vecA[motorIndex]*vecC[motorIndex];
                 }
                 factorB = sqrt(factorB);
 
-                printf("%d/%d: %f\n", vertexIndex, vertexEndIndex, factorB);
+                printf("%llu/%llu: %f %f\n", vertexIndex, vertexEndIndex, factorB, errorInDir);
 
                 float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
                 if(factorB < vertexPrecision)
@@ -269,10 +281,6 @@ int main(int argc, char** argv) {
     }catch(netLink::Exception exc) {
         std::cout << "netLink::Exception " << (int)exc.code << " occured" << std::endl;
     }
-
-    stopRunning();
-    motorDriversActive.setValue(0);
-    socketManager.listen();
 
     return 0;
 }
