@@ -244,7 +244,7 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                std::cout << std::put_time(std::localtime(&now_c), "%T") << " " << vertexIndex << ": " << factorB << ", " << errorInDir << std::endl;
+                std::cout << networkTimer.count() << " " << vertexIndex << ": " << factorB << ", " << errorInDir << std::endl;
 
                 float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
                 if(factorB < vertexPrecision)
