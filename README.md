@@ -35,4 +35,7 @@ Euro    | Dollar  | Name and Link
 0.78€   | $0.88   | [Connectors](http://www.pollin.de/shop/dt/MzQxOTQ1OTk-/Bauelemente_Bauteile/Mechanische_Bauelemente/Steckverbinder_Klemmen/Leiterplatten_Anschlussklemme_XY301V.html)
 4.08€   | $4.57   | [Connectors](http://www.pollin.de/shop/dt/NTIzODQ1OTk-/Bauelemente_Bauteile/Mechanische_Bauelemente/Steckverbinder_Klemmen/Anschlussklemme_PTR_AKZ950_2_polig_gruen.html)
 1.56€   | $1.75   | [Connectors](http://www.pollin.de/shop/dt/MDIzODQ1OTk-/Bauelemente_Bauteile/Mechanische_Bauelemente/Steckverbinder_Klemmen/Stiftleiste_PTR_STLZ950_2_polig_90_gruen.html)
-562.26€ | $629.35 | Sum (Delivery costs not included, last checked 2015/10/01)
+562.26€ | $629.35 | Sum
+
+Delivery costs not included
+last checked 2015/10/01

@@ -21,7 +21,7 @@ const decodeStream = msgpack.createDecodeStream();
 CNCDeamon.pipe(decodeStream).on('data', function(data) {
     switch(data.type) {
         case 'position':
-            var str = '\r\x1B[2K';
+            var str = '\r\x1B[2K'+data.commandsLeft+': '+data.vertexIndex+'/'+data.vertexEndIndex+'\t';
             for(var i in data.coords)
                 str += data.coords[i].toFixed(3)+' ';
             process.stdout.write(str);
@@ -68,13 +68,19 @@ stdin.on('data', function(key) {
             encodeStream.write({'type': 'run', 'speed': speed, 'motor': 2});
         break;
         case 'y':
-            encodeStream.write({'type': 'stop'});
+            encodeStream.write({'type': 'cancel'});
         break;
         case 'x':
-            encodeStream.write({'type': 'idle'});
+            encodeStream.write({'type': 'interrupt'});
         break;
-        case 'g':
-            encodeStream.write({'type': 'goto', 'duration': 10.0, 'pos': [50, 10, 0]});
+        case 'r':
+            encodeStream.write({'type': 'resume'});
+        break;
+        case 'h':
+            encodeStream.write({'type': 'reset'});
+        break;
+        case 'o':
+            encodeStream.write({'type': 'polygon', 'speed': 3.0, 'vertices': [[0, 0, 0]]});
         break;
         /*default:
             process.stdout.write(key);*/

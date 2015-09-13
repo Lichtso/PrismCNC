@@ -11,7 +11,7 @@ std::vector<std::unique_ptr<MsgPack::Element>> commands;
 std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow;
 float targetSpeed, srcPos[motorCount], dstPos[motorCount];
 uint64_t vertexIndex, vertexEndIndex;
-bool running = false;
+bool running;
 
 void resetCommand() {
     vertexIndex = vertexEndIndex = 0;
@@ -114,14 +114,13 @@ void handleCommand() {
 }
 
 int main(int argc, char** argv) {
-    resetCommand();
     SPI bus(motorCount, 5000000);
     motorDriversActive.setIndex(7);
     motorDriversActive.setMode(1);
     motorDriversActive.setValue(1);
-
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
         motors[motorIndex] = new L6470(&bus, motorIndex);
+    stopRunning();
 
     socketManager.onConnectRequest = [](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> serverSocket, std::shared_ptr<netLink::Socket> clientSocket) {
         std::cout << "Accepted connection from " << clientSocket->hostRemote << ":" << clientSocket->portRemote << std::endl;
@@ -164,6 +163,11 @@ int main(int argc, char** argv) {
                     std::cout << *element << std::endl;
                 handleCommand();
             }
+            return;
+        }else if(type == "reset") {
+            if(running) return;
+            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+                motors[motorIndex]->resetHome();
             return;
         }
         std::function<bool(L6470*)> command;
@@ -228,6 +232,8 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
+                printf("%d/%d: %f\n", vertexIndex, vertexEndIndex, factorB);
+
                 float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
                 if(factorB < vertexPrecision)
                     handleCommand();
@@ -264,8 +270,7 @@ int main(int argc, char** argv) {
         std::cout << "netLink::Exception " << (int)exc.code << " occured" << std::endl;
     }
 
-    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-        motors[motorIndex]->setIdle(false);
+    stopRunning();
     motorDriversActive.setValue(0);
     socketManager.listen();
 
