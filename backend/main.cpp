@@ -115,14 +115,14 @@ void handleCommand() {
 }
 
 void onExit(int sig) {
-    printf("onExit\n");
     stopRunning();
     motorDriversActive.setValue(0);
     socketManager.listen();
+    exit(0);
 }
 
 int main(int argc, char** argv) {
-    signal(SIGTERM, onExit);
+    signal(SIGINT, onExit);
 
     SPI bus(motorCount, 5000000);
     motorDriversActive.setIndex(7);
@@ -237,14 +237,14 @@ int main(int argc, char** argv) {
                 float errorInDir = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                     vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
-                    vecC[motorIndex] *= 2.0;
+                    vecC[motorIndex] *= factorA*2.0;
                     vecC[motorIndex] += vecB[motorIndex];
                     factorB += vecC[motorIndex]*vecC[motorIndex];
                     errorInDir += vecA[motorIndex]*vecC[motorIndex];
                 }
                 factorB = sqrt(factorB);
 
-                printf("%llu/%llu: %f %f\n", vertexIndex, vertexEndIndex, factorB, errorInDir);
+                std::cout << std::put_time(std::localtime(&now_c), "%T") << " " << vertexIndex << ": " << factorB << ", " << errorInDir << std::endl;
 
                 float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
                 if(factorB < vertexPrecision)
