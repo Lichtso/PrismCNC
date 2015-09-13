@@ -92,10 +92,12 @@ bool L6470::setIdle(bool immediately) {
 }
 
 bool L6470::resetHome() {
+    absPos = 0;
     return set(0, 0xD8, 0);
 }
 
 bool L6470::resetDevice() {
+    absPos = 0;
     return set(0, 0xC0, 0);
 }
 
