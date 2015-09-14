@@ -244,15 +244,13 @@ int main(int argc, char** argv) {
                 }
                 factorB = sqrt(factorB);
 
-                std::cout << networkTimer.count() << " " << vertexIndex << ": " << factorB << ", " << errorInDir << std::endl;
-
                 float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
                 if(factorB < vertexPrecision)
                     handleCommand();
                 else
                     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
                         float directedSpeed = targetSpeed*vecC[motorIndex]/factorB, absSpeed = fabsf(directedSpeed);
-                        factorA = std::min(1.0F, factorB/(absSpeed*absSpeed*0.07F));
+                        factorA = std::min(1.0F, factorB/(absSpeed*absSpeed*0.055F));
                         motors[motorIndex]->runInHz(directedSpeed*factorA);
                     }
             }
