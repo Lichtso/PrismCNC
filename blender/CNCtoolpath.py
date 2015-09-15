@@ -9,7 +9,7 @@ import msgpack
 
 bl_info = {
     "name": "CNC Toolpath",
-    "description": "CNC mesh to toolpath converter.",
+    "description": "CNC toolpath utilities",
     "author": "Alexander Meißner",
     "version": (1, 0),
     "blender": (2, 75, 0),
@@ -20,7 +20,7 @@ floatFormat = "{:.4f}"
 def ToolpathToJSON(obj, scale, slowSpeed, fastSpeed):
     result = []
     vertices = []
-
+    transform = Matrix.Scale(scale, 4)*obj.matrix_world
     mesh = bmesh.new()
     mesh.from_mesh(obj.data)
     mesh.verts.ensure_lookup_table()
@@ -54,7 +54,7 @@ def ToolpathToJSON(obj, scale, slowSpeed, fastSpeed):
             result.append({"type": "polygon", "speed":prevSpeed, "vertices":vertices})
             vertices = []
         prevSpeed = speed
-        pos = obj.matrix_world*(vertex.co*scale)
+        pos = transform*vertex.co
         vertices.append((-pos.x, pos.y, pos.z))
         if len(vertex.link_edges) < 2:
             break
@@ -91,6 +91,8 @@ class SendToolpathOperator(bpy.types.Operator):
     def execute(self, context):
         packer = msgpack.Packer()
         result = ToolpathToJSON(context.active_object, self.scale, self.slowSpeed, self.fastSpeed)
+        for item in result:
+            self.report({"INFO"}, str(item))
         if isinstance(result, str):
             self.report({"ERROR"}, result)
         else:
@@ -112,7 +114,6 @@ def create_toolpath_object(self, context, verts, speeds, name):
     faces = []
     for i in range(0, len(verts)-1):
         edges.append([i, i+1])
-
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(verts, edges, faces)
     for i in range(0, len(verts)-1):
@@ -128,23 +129,21 @@ class RectToolpathOperator(bpy.types.Operator, AddObjectHelper):
     bl_options = {"REGISTER", "UNDO"}
 
     track_count = IntProperty(name="Number Tracks", description = "How many tracks", min=1, default=10)
-    stride = FloatProperty(name="Stride", description="Distance to edge on the way back", min=0.0, default=0.05)
-    toolRadius = FloatProperty(name="Tool Radius", description="Radius of the tool", min=0.0, default=0.15)
-    penetration = FloatProperty(name="Penetration", description="How much of the tool radius is used", min=0.0, max=1.0, default=2.0/3.0)
+    stride = FloatProperty(name="Stride", description="Distance to last track on the way back", min=0.0, default=0.05)
+    pitch = FloatProperty(name="Pitch", description="Distance between two tracks", default=-0.1)
     length = FloatProperty(name="Length", description="Length of one track", default=1.0)
 
     def execute(self, context):
         vertices = []
         speeds = []
-        pitch = -self.toolRadius*self.penetration
-        stride = self.toolRadius*0.5
+        stride = copysign(self.stride, self.pitch)
 
         for i in range(0, self.track_count):
-            shift = i*pitch
+            shift = i*self.pitch
             vertices.append(Vector((shift, 0.0, 0.0)))
             vertices.append(Vector((shift, self.length, 0.0)))
-            vertices.append(Vector((shift+stride, self.length, 0.0)))
-            vertices.append(Vector((shift+stride, 0.0, 0.0)))
+            vertices.append(Vector((shift-stride, self.length, 0.0)))
+            vertices.append(Vector((shift-stride, 0.0, 0.0)))
             speeds += [True, False, False, False]
 
         create_toolpath_object(self, context, vertices, speeds, "Rect Toolpath")
@@ -155,23 +154,41 @@ class DrillToolpathOperator(bpy.types.Operator, AddObjectHelper):
     bl_label = "Drill Toolpath"
     bl_options = {"REGISTER", "UNDO"}
 
-    turn_count = FloatProperty(name="Number Turns", description = "How many truns", min=1.0, default=10.0)
-    vertex_count = IntProperty(name="Number Vertices", description = "How many vertices per turn", min=3, default=32)
+    screw_count = FloatProperty(name="Screw Turns", description = "How many screw truns", min=1.0, default=10.0)
+    spiral_count = FloatProperty(name="Spiral Turns", description="How many spiral turns", min=0.0, default=0.0)
+    vertex_count = IntProperty(name="Number Vertices", description = "How many vertices per screw turn", min=3, default=32)
     toolRadius = FloatProperty(name="Tool Radius", description="Radius of the tool", min=0.0, default=0.15)
-    screwRadius = FloatProperty(name="Screw Radius", description="Radius of the screw", min=0.0, default=0.5)
-    pitch = FloatProperty(name="Pitch", description="Distance between two turns", min=0.0, default=0.1)
+    holeRadius = FloatProperty(name="Hole Radius", description="Radius of the hole", min=0.0, default=0.5)
+    pitch = FloatProperty(name="Pitch", description="Distance between two screw turns", min=0.0, default=0.1)
 
     def execute(self, context):
         vertices = []
         speeds = []
-        count = int(self.vertex_count*self.turn_count)
-        height = count/self.vertex_count*self.pitch
-        radius = self.screwRadius-self.toolRadius
+        count = int(self.vertex_count*self.screw_count)
+        height = -count/self.vertex_count*self.pitch
+        radius = self.holeRadius-self.toolRadius
 
-        if self.screwRadius <= self.toolRadius:
-            vertices += [Vector((0.0, 0.0, -height)), Vector((0.0, 0.0, 0.0))]
+        if self.holeRadius < self.toolRadius:
+            self.report({"ERROR"}, "Hole can't be smaller than the tool")
+            return {"FINISHED"}
+        elif self.holeRadius == self.toolRadius:
+            vertices += [Vector((0.0, 0.0, height)), Vector((0.0, 0.0, 0.0))]
             speeds += [True, False]
         else:
+            if self.spiral_count > 0.0:
+                sCount = int(self.spiral_count*self.vertex_count)
+                for j in range(0, int(self.screw_count)+1):
+                    sHeight = max(-j*self.pitch, height)
+                    for i in range(0, sCount+1):
+                        param = i/self.vertex_count
+                        angle = param*pi*2
+                        sRadius = param*(radius/self.spiral_count)
+                        vertices.append(Vector((sin(angle)*sRadius, cos(angle)*sRadius, sHeight)))
+                        speeds.append(True)
+                    vertices.append(Vector((0.0, 0.0, sHeight)))
+                    speeds.append(True)
+                vertices.append(Vector((0.0, 0.0, 0.0)))
+                speeds.append(True)
             for i in range(0, count):
                 param = i/self.vertex_count
                 angle = param*pi*2
@@ -180,10 +197,10 @@ class DrillToolpathOperator(bpy.types.Operator, AddObjectHelper):
             for i in range(0, self.vertex_count+1):
                 param = (count+i)/self.vertex_count
                 angle = param*pi*2
-                vertices.append(Vector((sin(angle)*radius, cos(angle)*radius, -height)))
+                vertices.append(Vector((sin(angle)*radius, cos(angle)*radius, height)))
                 if i > 0:
                     speeds.append(True)
-            vertices += [Vector((0.0, 0.0, -height)), Vector((0.0, 0.0, 0.0))]
+            vertices += [Vector((0.0, 0.0, height)), Vector((0.0, 0.0, 0.0))]
             speeds += [False, False]
 
         create_toolpath_object(self, context, vertices, speeds, "Drill Toolpath")
