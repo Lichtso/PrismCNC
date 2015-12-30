@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
             }
 
             if(running) {
-                factorA = sqrt(factorB)/sqrt(factorA);
+                factorA = (factorA == 0.0) ? 0.0 : sqrt(factorB)/sqrt(factorA);
                 factorB = 0.0;
                 float errorInDir = 0.0;
                 for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
