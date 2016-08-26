@@ -19,36 +19,36 @@ const axis = {
     motor: 0,
     speed: 0,
     gear: 0,
-    coord: 0
+    position: 0
   },
   y: {
     name: 'y',
     motor: 1,
     speed: 0,
     gear: 0,
-    coord: 0
+    position: 0
   },
   z: {
     name: 'z',
     motor: 2,
     speed: 0,
     gear: 0,
-    coord: 0
+    position: 0
   }
 };
 
 const decodeStream = msgpack.createDecodeStream();
 CNCDeamon.pipe(decodeStream).on('data', function (data) {
   switch (data.type) {
-    case 'position':
-      axis.x.coord = data.coords[0];
-      axis.y.coord = data.coords[1];
-      axis.z.coord = data.coords[2];
+    case 'status':
+      axis.x.position = data.position[0];
+      axis.y.position = data.position[1];
+      axis.z.position = data.position[2];
 
       var str = '\r\x1B[2K';
 
       for (let a of ['x','y','z']) {
-        str += `${axis[a].coord.toFixed(3)} (${axis[a].gear}) `;
+        str += `${axis[a].position.toFixed(3)} (${axis[a].gear}) `;
       }
       process.stdout.write(str);
       break;

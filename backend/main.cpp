@@ -73,13 +73,13 @@ void calculateTangent(float param) {
     Vector tangent = ((prev.next-prev.pos)*a+(next.prev-prev.next)*b+(next.pos-next.prev)*c).normalized();
 }
 
-bool parseVector(Vector& vector, std::map::iterator<std::string, Element*>* iter) {
+bool parseVector(Vector& vector, std::map<std::string, Element*>::iterator* iter) {
     auto vectorElement = dynamic_cast<MsgPack::Map*>(iter->second);
     if(!vectorElement)
         return false;
     auto vectorVector = verticesElement->getElementsVector();
-    if(vectorVector.size() != motorCount)
-        return;
+    if(vectorVector->size() != motorCount)
+        return false;
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
         auto scalarElement = dynamic_cast<MsgPack::Number*>((*vectorVector)[motorIndex].get());
         if(!scalarElement)
@@ -127,14 +127,10 @@ void networkUpdate() {
         netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
         msgPackSocket << MsgPack__Factory(MapHeader(5));
         msgPackSocket << MsgPack::Factory("type");
+        msgPackSocket << MsgPack::Factory("status");
+        msgPackSocket << MsgPack::Factory("verticesLeft");
+        msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(vertices.size()));
         msgPackSocket << MsgPack::Factory("position");
-        msgPackSocket << MsgPack::Factory("vertexIndex");
-        msgPackSocket << MsgPack::Factory(vertexIndex);
-        msgPackSocket << MsgPack::Factory("vertexEndIndex");
-        msgPackSocket << MsgPack::Factory(vertexEndIndex);
-        msgPackSocket << MsgPack::Factory("commandsLeft");
-        msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(commands.size()));
-        msgPackSocket << MsgPack::Factory("coords");
         msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
         for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
             msgPackSocket << MsgPack::Factory(motors[motorIndex]->getPositionInTurns());
@@ -193,7 +189,7 @@ int main(int argc, char** argv) {
             if(!verticesElement)
                 return;
             auto verticesVector = verticesElement->getElementsVector();
-            for(size_t vertexIndex = 0; vertexIndex < verticesVector.size(); ++vertexIndex) {
+            for(size_t vertexIndex = 0; vertexIndex < verticesVector->size(); ++vertexIndex) {
                 Vertex vertex;
                 auto vertexMap = dynamic_cast<MsgPack::Map*>((*verticesVector)[vertexIndex]);
                 iter = vertexMap.find("speed");
@@ -209,9 +205,9 @@ int main(int argc, char** argv) {
                 iter = vertexMap.find("pos");
                 if(iter != vertexMap.end())
                     parseVector(vertex.pos, iter);
-                iter = vertexMap.find("post");
+                iter = vertexMap.find("next");
                 if(iter != vertexMap.end())
-                    parseVector(vertex.post, iter);
+                    parseVector(vertex.next, iter);
             }
             running = true;
             return;
