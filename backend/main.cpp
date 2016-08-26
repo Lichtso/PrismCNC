@@ -8,110 +8,137 @@ L6470* motors[motorCount];
 GPIOpin motorDriversActive;
 netLink::SocketManager socketManager;
 std::shared_ptr<netLink::Socket> serverSocket = socketManager.newMsgPackSocket();
-std::vector<std::unique_ptr<MsgPack::Element>> commands;
 std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow;
-float targetSpeed, srcPos[motorCount], dstPos[motorCount];
-uint64_t vertexIndex, vertexEndIndex;
-bool running;
+
+struct Vector {
+    float coords[motorCount];
+
+    Vector normalized() {
+        return *this*(1.0/length());
+    }
+
+    float length() {
+        return sqrt(dot(*this));
+    }
+
+    float dot(const Vector& other) {
+        float result = 0.0;
+        for(size_t i = 0; i < motorCount; ++i)
+            result += coords[i]*other.coords[i];
+        return result;
+    }
+
+    Vector operator-(const Vector& other) {
+        Vector result;
+        for(size_t i = 0; i < motorCount; ++i)
+            result.coords[i] = coords[i]-other.coords[i];
+        return result;
+    }
+
+    Vector operator+(const Vector& other) {
+        Vector result;
+        for(size_t i = 0; i < motorCount; ++i)
+            result.coords[i] = coords[i]+other.coords[i];
+        return result;
+    }
+
+    Vector operator*(float factor) {
+        Vector result;
+        for(size_t i = 0; i < motorCount; ++i)
+            result.coords[i] = coords[i]*factor;
+        return result;
+    }
+};
+
+struct Vertex {
+    float speed;
+    Vector prev, pos, next;
+};
+
+std::vector<Vertex> vertices;
+bool running = false;
+Vector position;
+
+void calculateTangent(float param) {
+    if(vertices.size() < 2)
+        return;
+    Vertex& prev = vertices[0];
+    Vertex& next = vertices[1];
+    float coParam = 1.0-param,
+          paramSquared = param*param,
+          coParamSquared = coParam*coParam,
+          a = coParam*coParam,
+          b = 2.0*coParam*param,
+          c = param*param;
+    Vector tangent = ((prev.next-prev.pos)*a+(next.prev-prev.next)*b+(next.pos-next.prev)*c).normalized();
+}
+
+bool parseVector(Vector& vector, std::map::iterator<std::string, Element*>* iter) {
+    auto vectorElement = dynamic_cast<MsgPack::Map*>(iter->second);
+    if(!vectorElement)
+        return false;
+    auto vectorVector = verticesElement->getElementsVector();
+    if(vectorVector.size() != motorCount)
+        return;
+    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+        auto scalarElement = dynamic_cast<MsgPack::Number*>((*vectorVector)[motorIndex].get());
+        if(!scalarElement)
+            return false;
+        vector.coords[motorIndex] = scalarElement->getValue<float>();
+    }
+    return true;
+}
 
 void resetCommand() {
-    vertexIndex = vertexEndIndex = 0;
-    targetSpeed = 0.0;
+    vertices.clear();
+    running = false;
 }
 
 void stopRunning() {
     resetCommand();
-    running = false;
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
         motors[motorIndex]->setIdle(false);
 }
 
-void interruptCommand() {
-    if(!running) return;
-    float height = 20.0;
-
-    std::vector<std::unique_ptr<MsgPack::Element>> vertexH;
-    vertexH.emplace_back(MsgPack::Factory(srcPos[0]));
-    vertexH.emplace_back(MsgPack::Factory(srcPos[1]));
-    vertexH.emplace_back(MsgPack::Factory(srcPos[2]+height));
-
-    std::vector<std::unique_ptr<MsgPack::Element>> vertexL;
-    vertexL.emplace_back(MsgPack::Factory(srcPos[0]));
-    vertexL.emplace_back(MsgPack::Factory(srcPos[1]));
-    vertexL.emplace_back(MsgPack::Factory(srcPos[2]));
-
-    std::vector<std::unique_ptr<MsgPack::Element>> vertices;
-    vertices.emplace_back(MsgPack__Factory(Array(std::move(vertexH))));
-    vertices.emplace_back(MsgPack__Factory(Array(std::move(vertexL))));
-
-    std::map<std::string, std::unique_ptr<MsgPack::Element>> map;
-    map["type"] = MsgPack::Factory("interrupt");
-    map["speed"] = MsgPack::Factory(1.0);
-    map["vertexIndex"] = MsgPack::Factory(vertexIndex);
-    map["vertices"] = MsgPack__Factory(Array(std::move(vertices)));
-    commands.emplace(commands.begin(), MsgPack__Factory(Map(std::move(map))));
-    stopRunning();
+void motorUpdate() {
+    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+        const char* error = motors[motorIndex]->getStatus();
+        if(error) {
+            for(auto& iter : serverSocket.get()->clients) {
+                netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
+                msgPackSocket << MsgPack__Factory(MapHeader(3));
+                msgPackSocket << MsgPack::Factory("type");
+                msgPackSocket << MsgPack::Factory("exception");
+                msgPackSocket << MsgPack::Factory("motor");
+                msgPackSocket << MsgPack::Factory((uint64_t)motorIndex);
+                msgPackSocket << MsgPack::Factory("message");
+                msgPackSocket << MsgPack::Factory(error);
+            }
+            stopRunning();
+            return;
+        }
+        motors[motorIndex]->updatePosition();
+        position.coords[motorIndex] = motors[motorIndex]->getPositionInTurns();
+    }
 }
 
-void handleCommand() {
-    {
-        if(commands.empty()) goto cancel;
-        auto element = commands.begin()->get();
-        auto mapElement = dynamic_cast<MsgPack::Map*>(element);
-        if(!mapElement) goto cancel;
-        auto map = mapElement->getElementsMap();
-        auto iter = map.find("type");
-        if(iter == map.end()) return;
-        auto typeElement = dynamic_cast<MsgPack::String*>(iter->second);
-        if(!typeElement) return;
-        auto type = typeElement->stdString();
-        iter = map.find("vertices");
-        if(iter == map.end()) goto cancel;
-        auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
-        if(!verticesElement) goto cancel;
-        auto verticesVector = verticesElement->getElementsVector();
-        iter = map.find("speed");
-        if(iter == map.end()) goto cancel;
-        auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
-        if(!speedElement) goto cancel;
-        targetSpeed = speedElement->getValue<float>();
-        running = true;
-        vertexEndIndex = verticesVector->size();
-        if(vertexIndex < vertexEndIndex) {
-            auto vertexElement = dynamic_cast<MsgPack::Array*>((*verticesVector)[vertexIndex].get());
-            if(!vertexElement) goto cancel;
-            auto vertexVector = vertexElement->getElementsVector();
-            if(vertexVector->size() != motorCount) goto cancel;
-            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                auto scalarElement = dynamic_cast<MsgPack::Number*>((*vertexVector)[motorIndex].get());
-                if(!scalarElement) goto cancel;
-                srcPos[motorIndex] = (vertexIndex == 0) ? motors[motorIndex]->getPositionInTurns() : dstPos[motorIndex];
-                dstPos[motorIndex] = scalarElement->getValue<float>();
-            }
-            ++vertexIndex;
-        }else{
-            if(type == "interrupt") {
-                if(commands.size() == 1)
-                    goto cancel;
-                iter = map.find("vertexIndex");
-                if(iter == map.end()) return;
-                auto indexElement = dynamic_cast<MsgPack::Number*>(iter->second);
-                if(!indexElement) return;
-                vertexIndex = indexElement->getValue<uint64_t>();
-                commands.erase(commands.begin());
-                return;
-            }else
-                goto cancel;
-        }
-
-        return;
+void networkUpdate() {
+    for(auto& iter : serverSocket.get()->clients) {
+        netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
+        msgPackSocket << MsgPack__Factory(MapHeader(5));
+        msgPackSocket << MsgPack::Factory("type");
+        msgPackSocket << MsgPack::Factory("position");
+        msgPackSocket << MsgPack::Factory("vertexIndex");
+        msgPackSocket << MsgPack::Factory(vertexIndex);
+        msgPackSocket << MsgPack::Factory("vertexEndIndex");
+        msgPackSocket << MsgPack::Factory(vertexEndIndex);
+        msgPackSocket << MsgPack::Factory("commandsLeft");
+        msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(commands.size()));
+        msgPackSocket << MsgPack::Factory("coords");
+        msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
+        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+            msgPackSocket << MsgPack::Factory(motors[motorIndex]->getPositionInTurns());
     }
-
-    cancel:
-    commands.erase(commands.begin());
-    resetCommand();
-    if(commands.empty())
-        stopRunning();
 }
 
 void onExit(int sig) {
@@ -148,55 +175,83 @@ int main(int argc, char** argv) {
     socketManager.onReceiveMsgPack = [&](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> socket, std::unique_ptr<MsgPack::Element> element) {
         std::cout << "Received data from " << socket->hostRemote << ":" << socket->portRemote << ": " << *element << std::endl;
         auto mapElement = dynamic_cast<MsgPack::Map*>(element.get());
-        if(!mapElement) return;
+        if(!mapElement)
+            return;
         auto map = mapElement->getElementsMap();
         auto iter = map.find("type");
-        if(iter == map.end()) return;
+        if(iter == map.end())
+            return;
         auto typeElement = dynamic_cast<MsgPack::String*>(iter->second);
-        if(!typeElement) return;
+        if(!typeElement)
+            return;
         auto type = typeElement->stdString();
-        if(type == "polygon") {
-            commands.push_back(std::move(element));
-            if(commands.size() == 1)
-                handleCommand();
+        if(type == "curve") {
+            auto iter = map.find("vertices");
+            if(iter == map.end())
+                return;
+            auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
+            if(!verticesElement)
+                return;
+            auto verticesVector = verticesElement->getElementsVector();
+            for(size_t vertexIndex = 0; vertexIndex < verticesVector.size(); ++vertexIndex) {
+                Vertex vertex;
+                auto vertexMap = dynamic_cast<MsgPack::Map*>((*verticesVector)[vertexIndex]);
+                iter = vertexMap.find("speed");
+                if(iter == vertexMap.end())
+                    return;
+                auto scalarElement = dynamic_cast<MsgPack::Number*>(iter.get());
+                if(!scalarElement)
+                    return;
+                vertex.speed = scalarElement->getValue<float>();
+                iter = vertexMap.find("prev");
+                if(iter != vertexMap.end())
+                    parseVector(vertex.prev, iter);
+                iter = vertexMap.find("pos");
+                if(iter != vertexMap.end())
+                    parseVector(vertex.pos, iter);
+                iter = vertexMap.find("post");
+                if(iter != vertexMap.end())
+                    parseVector(vertex.post, iter);
+            }
+            running = true;
             return;
-        }else if(type == "interrupt") {
-            interruptCommand();
+        } /*else if(type == "interrupt") {
             return;
-        }else if(type == "cancel") {
-            commands.clear();
+        } else if(type == "resume") {
+            return;
+        } */ else if(type == "reset") {
             stopRunning();
             return;
-        }else if(type == "resume") {
-            if(!commands.empty()) {
-                for(auto& element : commands)
-                    std::cout << *element << std::endl;
-                handleCommand();
-            }
-            return;
-        }else if(type == "reset") {
-            if(running) return;
+        } else if(type == "origin") {
+            if(running)
+                return;
             for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
                 motors[motorIndex]->resetHome();
             return;
         }
         std::function<bool(L6470*)> command;
         if(type == "run") {
-            if(running) return;
+            if(running)
+                return;
             iter = map.find("speed");
-            if(iter == map.end()) return;
+            if(iter == map.end())
+                return;
             auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
-            if(!speedElement) return;
+            if(!speedElement)
+                return;
             command = std::bind(&L6470::runInHz, std::placeholders::_1, speedElement->getValue<float>());
-        }else return;
+        } else
+            return;
         iter = map.find("motor");
         if(iter != map.end()) {
             auto motorElement = dynamic_cast<MsgPack::Number*>(iter->second);
-            if(!motorElement) return;
+            if(!motorElement)
+                return;
             size_t motorIndex = motorElement->getValue<size_t>();
-            if(motorIndex > motorCount) return;
+            if(motorIndex > motorCount)
+                return;
             command(motors[motorIndex]);
-        }else for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+        } else for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
             command(motors[motorIndex]);
     };
 
@@ -207,76 +262,20 @@ int main(int argc, char** argv) {
             runLoopNow = std::chrono::system_clock::now();
             std::chrono::duration<float> networkTimer = runLoopNow-runLoopLastUpdate;
 
-            float vecA[motorCount], vecB[motorCount], vecC[motorCount], factorA = 0.0, factorB = 0.0;
-            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                const char* error = motors[motorIndex]->getStatus();
-                if(error) {
-                    for(auto& iter : serverSocket.get()->clients) {
-                        netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
-                        msgPackSocket << MsgPack__Factory(MapHeader(3));
-                        msgPackSocket << MsgPack::Factory("type");
-                        msgPackSocket << MsgPack::Factory("exception");
-                        msgPackSocket << MsgPack::Factory("motor");
-                        msgPackSocket << MsgPack::Factory((uint64_t)motorIndex);
-                        msgPackSocket << MsgPack::Factory("message");
-                        msgPackSocket << MsgPack::Factory(error);
-                    }
-                    interruptCommand();
-                    motors[motorIndex]->setIdle(false);
-                }
-                motors[motorIndex]->updatePosition();
-                vecA[motorIndex] = dstPos[motorIndex]-srcPos[motorIndex];
-                factorA += vecA[motorIndex]*vecA[motorIndex];
-                vecB[motorIndex] = dstPos[motorIndex]-motors[motorIndex]->getPositionInTurns();
-                factorB += vecB[motorIndex]*vecB[motorIndex];
-            }
+            motorUpdate();
 
             if(running) {
-                factorA = (factorA == 0.0) ? 0.0 : sqrt(factorB)/sqrt(factorA);
-                factorB = 0.0;
-                float errorInDir = 0.0;
-                for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                    vecC[motorIndex] = vecB[motorIndex]-vecA[motorIndex]*factorA;
-                    vecC[motorIndex] *= factorA*2.0;
-                    vecC[motorIndex] += vecB[motorIndex];
-                    factorB += vecC[motorIndex]*vecC[motorIndex];
-                    errorInDir += vecA[motorIndex]*vecC[motorIndex];
-                }
-                factorB = sqrt(factorB);
-
-                float vertexPrecision = (vertexIndex < vertexEndIndex-1) ? 0.01 : 0.0001;
-                if(factorB < vertexPrecision)
-                    handleCommand();
-                else
-                    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-                        float directedSpeed = targetSpeed*vecC[motorIndex]/factorB, absSpeed = fabsf(directedSpeed);
-                        factorA = std::min(1.0F, factorB/(absSpeed*absSpeed*0.055F));
-                        motors[motorIndex]->runInHz(directedSpeed*factorA);
-                    }
+                // motors[motorIndex]->runInHz(directedSpeed*factorA);
             }
 
             if(networkTimer.count() > 0.01) {
                 runLoopLastUpdate = runLoopNow;
-                for(auto& iter : serverSocket.get()->clients) {
-                    netLink::MsgPackSocket& msgPackSocket = *static_cast<netLink::MsgPackSocket*>(iter.get());
-                    msgPackSocket << MsgPack__Factory(MapHeader(5));
-                    msgPackSocket << MsgPack::Factory("type");
-                    msgPackSocket << MsgPack::Factory("position");
-                    msgPackSocket << MsgPack::Factory("vertexIndex");
-                    msgPackSocket << MsgPack::Factory(vertexIndex);
-                    msgPackSocket << MsgPack::Factory("vertexEndIndex");
-                    msgPackSocket << MsgPack::Factory(vertexEndIndex);
-                    msgPackSocket << MsgPack::Factory("commandsLeft");
-                    msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(commands.size()));
-                    msgPackSocket << MsgPack::Factory("coords");
-                    msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
-                    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                        msgPackSocket << MsgPack::Factory(motors[motorIndex]->getPositionInTurns());
-                }
+                networkUpdate();
             }
+
             socketManager.listen();
         }
-    }catch(netLink::Exception exc) {
+    } catch(netLink::Exception exc) {
         std::cout << "netLink::Exception " << (int)exc.code << " occured" << std::endl;
     }
 

@@ -130,7 +130,7 @@ stdin.on('data', function (key) {
       break;
     case 'c':
       encodeStream.write({
-        'type': 'cancel'
+        'type': 'reset'
       });
       axis.x.gear = 0;
       axis.y.gear = 0;
@@ -138,7 +138,7 @@ stdin.on('data', function (key) {
       break;
     case 'v':
       encodeStream.write({
-        'type': 'reset'
+        'type': 'origin'
       });
       axis.x.gear = 0;
       axis.y.gear = 0;
