@@ -73,7 +73,10 @@ void calculateTangent(float param) {
     Vector tangent = ((prev.next-prev.pos)*a+(next.prev-prev.next)*b+(next.pos-next.prev)*c).normalized();
 }
 
-bool parseVector(Vector& vector, std::map<std::string, Element*>::iterator* iter) {
+bool parseVector(std::map<std::string, MsgPack::Element*>& vertexMap, Vector& vector, const char* name) {
+    auto iter = vertexMap.find(name);
+    if(iter == vertexMap.end())
+        return false;
     auto vectorElement = dynamic_cast<MsgPack::Map*>(iter->second);
     if(!vectorElement)
         return false;
@@ -191,7 +194,8 @@ int main(int argc, char** argv) {
             auto verticesVector = verticesElement->getElementsVector();
             for(size_t vertexIndex = 0; vertexIndex < verticesVector->size(); ++vertexIndex) {
                 Vertex vertex;
-                auto vertexMap = dynamic_cast<MsgPack::Map*>((*verticesVector)[vertexIndex]);
+                auto vertexElement = dynamic_cast<MsgPack::Map*>((*verticesVector)[vertexIndex].get());
+                auto vertexMap = vertexElement->getElementsMap();
                 iter = vertexMap.find("speed");
                 if(iter == vertexMap.end())
                     return;
@@ -199,15 +203,9 @@ int main(int argc, char** argv) {
                 if(!scalarElement)
                     return;
                 vertex.speed = scalarElement->getValue<float>();
-                iter = vertexMap.find("prev");
-                if(iter != vertexMap.end())
-                    parseVector(vertex.prev, iter);
-                iter = vertexMap.find("pos");
-                if(iter != vertexMap.end())
-                    parseVector(vertex.pos, iter);
-                iter = vertexMap.find("next");
-                if(iter != vertexMap.end())
-                    parseVector(vertex.next, iter);
+                parseVector(vertexMap, vertex.prev, "prev");
+                parseVector(vertexMap, vertex.pos, "pos");
+                parseVector(vertexMap, vertex.next, "next");
             }
             running = true;
             return;
