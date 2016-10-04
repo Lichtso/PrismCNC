@@ -27,7 +27,7 @@ struct Vector {
             auto scalarElement = dynamic_cast<MsgPack::Number*>((*vectorVector)[i].get());
             if(!scalarElement)
                 return false;
-            coords[motorIndex] = scalarElement->getValue<float>();
+            coords[i] = scalarElement->getValue<float>();
         }
         std::cout << "vector " << name << " " << *this << std::endl;
         return true;
@@ -72,27 +72,27 @@ struct Vector {
             result.coords[i] = coords[i]*factor;
         return result;
     }
-};
 
-std::ostream& operator<<(std::ostream& stream, const Vector& vector) {
-    for(size_t i = 0; i < motorCount; ++i) {
-        if(i > 0)
-            stream << " ";
-        stream << vector.coords[i];
+    friend std::ostream& operator<<(std::ostream& stream, const Vector& vector) {
+        for(size_t i = 0; i < motorCount; ++i) {
+            if(i > 0)
+                stream << " ";
+            stream << vector.coords[i];
+        }
+        return stream;
     }
-    return stream;
-}
+};
 
 struct Vertex {
     float speed;
     Vector prev, pos, next;
 };
 
-std::vector<Vertex> vertices;
+std::deque<Vertex> vertices;
 float curveParam = -1.0;
 Vector position;
 
-Vertex bezierPointAt(float param) {
+Vector bezierPointAt(float param) {
     Vertex& prev = vertices[0];
     Vertex& next = vertices[1];
     float coParam = 1.0-param,
@@ -101,7 +101,7 @@ Vertex bezierPointAt(float param) {
     return prev.pos*(coParamSquared*coParam)+prev.next*(coParamSquared*param)+next.prev*(coParam*paramSquared)+next.pos*(param*paramSquared);
 }
 
-Vertex bezierTangentAt(float param) {
+Vector bezierTangentAt(float param) {
     Vertex& prev = vertices[0];
     Vertex& next = vertices[1];
     float coParam = 1.0-param,
@@ -165,7 +165,7 @@ void readMotors() {
 
 void writeMotors() {
     std::cout << "writeMotors " << vertices.size() << " " << curveParam << " " << position << std::endl;
-    if(vertices.size() == 0) {
+    if(vertices.empty()) {
         std::cout << "no vertices" << std::endl;
         stopMotors();
         return;
@@ -185,6 +185,8 @@ void writeMotors() {
         if(speed < 0.1)
             speed = 0.1;
     }
+
+    Vector targetPoint;
     if(targetIndex) {
         curveParam = findParamAtDistance(0.0);
         float targetParam = findParamAtDistance(1.0);
