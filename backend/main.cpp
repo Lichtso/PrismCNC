@@ -17,7 +17,7 @@ struct Vector {
         auto iter = vertexMap.find(name);
         if(iter == vertexMap.end())
             return false;
-        auto vectorElement = dynamic_cast<MsgPack::Map*>(iter->second);
+        auto vectorElement = dynamic_cast<MsgPack::Array*>(iter->second);
         if(!vectorElement)
             return false;
         auto vectorVector = vectorElement->getElementsVector();
@@ -50,6 +50,14 @@ struct Vector {
         for(size_t i = 0; i < motorCount; ++i)
             result += coords[i]*other.coords[i];
         return result;
+    }
+
+    float dotNormalized(const Vector& other) {
+        return dot(other)/(length()*other.length());
+    }
+
+    float angleTo(const Vector& other) {
+        return arccos(dotNormalized(other));
     }
 
     Vector operator-(const Vector& other) {
@@ -180,15 +188,19 @@ void writeMotors() {
         stopMotors();
         return;
     } else if(endDistance < 1.0) {
-        std::cout << "closing in on vertex" << std::endl;
-        speed *= endDistance;
-        if(speed < 0.1)
-            speed = 0.1;
+        float rushFactor = (curveParam == -1.0 || vertices.size() <= 2)
+            ? 0.1
+            : max(0.1, (vertices[1].last-vertices[1].pos).dotNormalized(vertices[2].pos-vertices[2].next));
+
+        std::cout << "closing in on vertex " << rushFactor << std::endl;
+        speed *= endDistance*endDistance*(3.0-2.0*endDistance)*(1.0-rushFactor)+rushFactor;
+        std::cout << "speed " << speed << std::endl;
     }
 
     Vector targetPoint;
     if(targetIndex) {
         curveParam = findParamAtDistance(0.0);
+        std::cout << "curveParam " << curveParam << std::endl;
         float targetParam = findParamAtDistance(1.0);
         targetPoint = bezierPointAt(targetParam);
         std::cout << "targetParam " << targetParam << std::endl;
