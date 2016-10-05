@@ -181,19 +181,20 @@ void writeMotors() {
     unsigned int targetIndex = (curveParam == -1.0 || vertices.size() == 1) ? 0 : 1;
     float speed = vertices[targetIndex].speed,
           endDistance = (vertices[targetIndex].pos-position).length();
+    bool firstOrLast = (curveParam == -1.0 || vertices.size() <= 2);
     if(endDistance < 0.01) {
         std::cout << "reached vertex" << std::endl;
         vertices.pop_front();
         curveParam = (vertices.size() < 2) ? -1.0 : 0.0;
-        stopMotors();
+        if(firstOrLast)
+            speed = 0;
         return;
     } else if(endDistance < 1.0) {
-        float rushFactor = (curveParam == -1.0 || vertices.size() <= 2)
+        float rushFactor = (firstOrLast)
             ? 0.0
             : (vertices[1].next-vertices[1].pos).dotNormalized(vertices[2].pos-vertices[2].prev);
         if(rushFactor < 0.1)
             rushFactor = 0.1;
-
         std::cout << "closing in on vertex " << rushFactor << std::endl;
         speed *= endDistance*endDistance*(3.0-2.0*endDistance)*(1.0-rushFactor)+rushFactor;
         std::cout << "speed " << speed << std::endl;
