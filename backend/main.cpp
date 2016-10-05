@@ -33,15 +33,15 @@ struct Vector {
         return true;
     }
 
-    Vector normalized() {
+    Vector normalized() const {
         return *this*(1.0/length());
     }
 
-    float squaredLength() {
+    float squaredLength() const {
         return dot(*this);
     }
 
-    float length() {
+    float length() const {
         return sqrt(squaredLength());
     }
 
@@ -57,7 +57,7 @@ struct Vector {
     }
 
     float angleTo(const Vector& other) {
-        return arccos(dotNormalized(other));
+        return acos(dotNormalized(other));
     }
 
     Vector operator-(const Vector& other) {
@@ -189,8 +189,10 @@ void writeMotors() {
         return;
     } else if(endDistance < 1.0) {
         float rushFactor = (curveParam == -1.0 || vertices.size() <= 2)
-            ? 0.1
-            : max(0.1, (vertices[1].last-vertices[1].pos).dotNormalized(vertices[2].pos-vertices[2].next));
+            ? 0.0
+            : (vertices[1].next-vertices[1].pos).dotNormalized(vertices[2].pos-vertices[2].prev);
+        if(rushFactor < 0.1)
+            rushFactor = 0.1;
 
         std::cout << "closing in on vertex " << rushFactor << std::endl;
         speed *= endDistance*endDistance*(3.0-2.0*endDistance)*(1.0-rushFactor)+rushFactor;
