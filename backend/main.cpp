@@ -45,36 +45,36 @@ struct Vector {
         return sqrt(squaredLength());
     }
 
-    float dot(const Vector& other) {
+    float dot(const Vector& other) const {
         float result = 0.0;
         for(size_t i = 0; i < motorCount; ++i)
             result += coords[i]*other.coords[i];
         return result;
     }
 
-    float dotNormalized(const Vector& other) {
+    float dotNormalized(const Vector& other) const {
         return dot(other)/(length()*other.length());
     }
 
-    float angleTo(const Vector& other) {
+    float angleTo(const Vector& other) const {
         return acos(dotNormalized(other));
     }
 
-    Vector operator-(const Vector& other) {
+    Vector operator-(const Vector& other) const {
         Vector result;
         for(size_t i = 0; i < motorCount; ++i)
             result.coords[i] = coords[i]-other.coords[i];
         return result;
     }
 
-    Vector operator+(const Vector& other) {
+    Vector operator+(const Vector& other) const {
         Vector result;
         for(size_t i = 0; i < motorCount; ++i)
             result.coords[i] = coords[i]+other.coords[i];
         return result;
     }
 
-    Vector operator*(float factor) {
+    Vector operator*(float factor) const {
         Vector result;
         for(size_t i = 0; i < motorCount; ++i)
             result.coords[i] = coords[i]*factor;
