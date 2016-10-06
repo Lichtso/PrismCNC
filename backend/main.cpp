@@ -106,7 +106,7 @@ Vector bezierPointAt(float param) {
     float coParam = 1.0-param,
           paramSquared = param*param,
           coParamSquared = coParam*coParam;
-    return prev.pos*(coParamSquared*coParam)+prev.next*(coParamSquared*param)+next.prev*(coParam*paramSquared)+next.pos*(param*paramSquared);
+    return prev.pos*(coParamSquared*coParam)+prev.next*(3.0*coParamSquared*param)+next.prev*(3.0*coParam*paramSquared)+next.pos*(param*paramSquared);
 }
 
 Vector bezierTangentAt(float param) {
@@ -172,7 +172,7 @@ void readMotors() {
 }
 
 void writeMotors() {
-    std::cout << "writeMotors " << vertices.size() << " " << curveParam << " " << position << std::endl;
+    std::cout << "writeMotors " << vertices.size() << " " << curveParam << std::endl;
     if(vertices.empty()) {
         std::cout << "no vertices" << std::endl;
         stopMotors();
@@ -184,7 +184,8 @@ void writeMotors() {
     bool firstOrLast = (curveParam == -1.0 || vertices.size() <= 2);
     if(endDistance < 0.01) {
         std::cout << "reached vertex" << std::endl;
-        vertices.pop_front();
+        if(curveParam != -1.0)
+            vertices.pop_front();
         curveParam = (vertices.size() < 2) ? -1.0 : 0.0;
         if(firstOrLast)
             speed = 0;
@@ -193,7 +194,7 @@ void writeMotors() {
         float rushFactor = (firstOrLast)
             ? 0.0
             : (vertices[1].next-vertices[1].pos).dotNormalized(vertices[2].pos-vertices[2].prev);
-        if(rushFactor < 0.1)
+        if(rushFactor != rushFactor || rushFactor < 0.1)
             rushFactor = 0.1;
         std::cout << "closing in on vertex " << rushFactor << std::endl;
         speed *= endDistance*endDistance*(3.0-2.0*endDistance)*(1.0-rushFactor)+rushFactor;
@@ -211,9 +212,13 @@ void writeMotors() {
         targetPoint = vertices[0].pos;
 
     Vector velocity = (targetPoint-position).normalized()*speed;
-    std::cout << "velocity " << velocity << std::endl;
-    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
+        std::cout << motorIndex;
+        std::cout << " v: " << velocity.coords[motorIndex];
+        std::cout << " p: " << position.coords[motorIndex];
+        std::cout << " t: " << target.coords[motorIndex] << std::endl;
         motors[motorIndex]->runInHz(velocity.coords[motorIndex]);
+    }
 }
 
 void networkUpdate() {
