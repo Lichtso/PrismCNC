@@ -119,7 +119,11 @@ Vector bezierTangentAt(float param) {
 }
 
 float findParamAtDistance(float distance) {
-    float lowerParam = curveParam, upperParam = 1.0;
+    float lowerParam = curveParam-0.1, upperParam = curveParam+0.1;
+    if(lowerParam < 0.0)
+        lowerParam = 0.0;
+    if(upperParam > 1.0)
+        upperParam = 1.0;
     for(unsigned int i = 0; i < 16; ++i) {
         float middleParam = (lowerParam+upperParam)*0.5,
               distanceA = (bezierPointAt((lowerParam+middleParam)*0.5)-position).squaredLength(),
@@ -172,7 +176,6 @@ void readMotors() {
 }
 
 void writeMotors() {
-    std::cout << "writeMotors " << vertices.size() << " " << curveParam << std::endl;
     if(vertices.empty()) {
         std::cout << "no vertices" << std::endl;
         stopMotors();
@@ -181,17 +184,23 @@ void writeMotors() {
     unsigned int targetIndex = (curveParam == -1.0 || vertices.size() == 1) ? 0 : 1;
     float speed = vertices[targetIndex].speed,
           endDistance = (vertices[targetIndex].pos-position).length();
-    bool firstOrLast = (curveParam == -1.0 || vertices.size() <= 2);
     if(endDistance < 0.01) {
         std::cout << "reached vertex" << std::endl;
-        if(curveParam != -1.0)
-            vertices.pop_front();
-        curveParam = (vertices.size() < 2) ? -1.0 : 0.0;
-        if(firstOrLast)
+        if(curveParam == -1.0) {
+            curveParam = 0.0;
+            std::cout << "first" << std::endl;
+        } else if(vertices.size() <= 2) {
+            curveParam = -1.0;
+            vertices.clear();
             speed = 0;
+            std::cout << "last" << std::endl;
+        } else {
+            curveParam = 0.0;
+            vertices.pop_front();
+        }
         return;
     } else if(endDistance < 1.0) {
-        float rushFactor = (firstOrLast)
+        float rushFactor = (curveParam == -1.0 || vertices.size() <= 2)
             ? 0.0
             : (vertices[1].next-vertices[1].pos).dotNormalized(vertices[2].pos-vertices[2].prev);
         if(rushFactor != rushFactor || rushFactor < 0.1)
@@ -216,7 +225,7 @@ void writeMotors() {
         std::cout << motorIndex;
         std::cout << " v: " << velocity.coords[motorIndex];
         std::cout << " p: " << position.coords[motorIndex];
-        std::cout << " t: " << target.coords[motorIndex] << std::endl;
+        std::cout << " t: " << targetPoint.coords[motorIndex] << std::endl;
         motors[motorIndex]->runInHz(velocity.coords[motorIndex]);
     }
 }
