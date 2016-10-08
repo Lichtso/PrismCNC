@@ -202,7 +202,7 @@ void writeMotors() {
     } else if(endDistance < 1.0) {
         float rushFactor = (curveParam == -1.0 || vertices.size() <= 2)
             ? 0.0
-            : (vertices[1].next-vertices[1].pos).dotNormalized(vertices[2].pos-vertices[2].prev);
+            : (vertices[1].pos-vertices[1].prev).dotNormalized(vertices[1].next-vertices[1].pos);
         if(rushFactor != rushFactor || rushFactor < 0.1)
             rushFactor = 0.1;
         std::cout << "closing in on vertex " << rushFactor << std::endl;
