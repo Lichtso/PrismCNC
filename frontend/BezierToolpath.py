@@ -8,8 +8,11 @@ bl_info = {
 }
 
 import bpy
-from mathutils import geometry, Vector
+import socket
+import msgpack
+from mathutils import geometry, Vector, Matrix
 from collections import namedtuple
+from bpy.props import *
 
 SplineBezierSegement = namedtuple('SplineBezierSegement', 'spline curve beginIndex endIndex params')
 AABB = namedtuple('AxisAlignedBoundingBox', 'center dimensions')
@@ -196,9 +199,7 @@ def getSelectedBezierSegments(splines):
         for index in range(0, len(spline.bezier_points)):
             point = spline.bezier_points[index]
             if point.select_right_handle:
-                nextIndex = index+1
-                if nextIndex == len(spline.bezier_points):
-                    nextIndex = 0
+                nextIndex = (index+1)%len(spline.bezier_points)
                 nextPoint = spline.bezier_points[nextIndex]
                 if nextPoint.select_left_handle == False:
                     continue
@@ -263,18 +264,18 @@ def subdivideBezierSegmentsAtParams(segments):
             subdivideBezierSegmentAtParams(segment)
 
 class BezierIntersection(bpy.types.Operator):
-    bl_idname = "curve.intersection"
-    bl_label = bl_info["name"]
+    bl_idname = "curve.bezier_intersection"
+    bl_label = "Bezier Intersection"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
     def poll(self, context):
-        obj = context.active_object
-        return obj != None and obj.type == 'CURVE' and obj.mode == 'EDIT'
+        obj = bpy.context.object
+        return obj != None and obj.type == "CURVE" and obj.mode == "EDIT"
 
     def execute(self, context):
-        data = bpy.context.object.data
-        segments = getSelectedBezierSegments(data.splines)
+        obj = bpy.context.object
+        segments = getSelectedBezierSegments(obj.data.splines)
         if len(segments) == 2:
             bezierIntersection(segments[0].curve, segments[1].curve, segments[0].params, segments[1].params)
             if len(segments[0].params) > 0:
@@ -282,6 +283,54 @@ class BezierIntersection(bpy.types.Operator):
         else:
             self.report({"ERROR"}, "Invalid selection")
         return {'FINISHED'}
+
+class SendToolpathOperator(bpy.types.Operator):
+    bl_idname = "object.send_toolpath"
+    bl_label = "Send Toolpath"
+    bl_options = {"REGISTER", "PRESET"}
+
+    address = StringProperty(name="IP-Address", default="")
+    port = IntProperty(name="Port", default=3823)
+    scale = FloatProperty(name="Scale", default=10.0)
+
+    @classmethod
+    def poll(cls, context):
+        obj = bpy.context.object
+        return obj != None and obj.type == "CURVE" and obj.mode == "EDIT"
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        packer = msgpack.Packer()
+        obj = bpy.context.object
+        transform = Matrix.Scale(self.scale, 4)*obj.matrix_world
+        if len(obj.data.splines) != 1:
+            self.report({"ERROR"}, "There must be exactly one curve per object")
+            return {"FINISHED"}
+        packet = []
+        spline = obj.data.splines[0]
+        for index in range(0, len(spline.bezier_points)):
+            point = spline.bezier_points[index]
+            vertex = {
+                "speed": point.weight_softbody,
+                "prev": transform*point.handle_left,
+                "pos": transform*point.co,
+                "next": transform*point.handle_right
+            }
+            vertex["prev"] = (-vertex["prev"].x, vertex["prev"].y, vertex["prev"].z)
+            vertex["pos"] = (-vertex["pos"].x, vertex["pos"].y, vertex["pos"].z)
+            vertex["next"] = (-vertex["next"].x, vertex["next"].y, vertex["next"].z)
+            packet.append(vertex)
+        try:
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client.settimeout(1)
+            client.connect((self.address, int(self.port)))
+            client.send(packer.pack({"type": "curve", "vertices": packet}))
+            client.close()
+        except socket.error as error:
+            self.report({"ERROR"}, "Could not connect: "+str(error))
+        return {"FINISHED"}
 
 def menu_func(self, context):
     self.layout.operator(BezierIntersection.bl_idname, text="Place vertex at curve intersection")
