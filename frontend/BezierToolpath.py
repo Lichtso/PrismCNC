@@ -292,6 +292,7 @@ class SendToolpathOperator(bpy.types.Operator):
     address = StringProperty(name="IP-Address", default="")
     port = IntProperty(name="Port", default=3823)
     scale = FloatProperty(name="Scale", default=10.0)
+    maxSpeed = 3.0
 
     @classmethod
     def poll(cls, context):
@@ -305,15 +306,29 @@ class SendToolpathOperator(bpy.types.Operator):
         packer = msgpack.Packer()
         obj = bpy.context.object
         transform = Matrix.Scale(self.scale, 4)*obj.matrix_world
-        if len(obj.data.splines) != 1:
-            self.report({"ERROR"}, "There must be exactly one curve per object")
+
+        selectedSpline = None
+        for spline in obj.data.splines:
+            for index in range(0, len(spline.bezier_points)):
+                point = spline.bezier_points[index]
+                if point.select_left_handle or point.select_control_point or point.select_right_handle:
+                    if selectedSpline != None:
+                        self.report({"ERROR"}, "Multiple curves selected")
+                        return {"FINISHED"}
+                    if spline.use_cyclic_u or spline.use_cyclic_v:
+                        self.report({"ERROR"}, "Curve must not be cyclic")
+                        return {"FINISHED"}
+                    selectedSpline = spline
+                    break
+        if selectedSpline == None:
+            self.report({"ERROR"}, "No curve selected")
             return {"FINISHED"}
+
         packet = []
-        spline = obj.data.splines[0]
-        for index in range(0, len(spline.bezier_points)):
-            point = spline.bezier_points[index]
+        for index in range(0, len(selectedSpline.bezier_points)):
+            point = selectedSpline.bezier_points[index]
             vertex = {
-                "speed": point.weight_softbody,
+                "speed": point.weight_softbody*self.maxSpeed,
                 "prev": transform*point.handle_left,
                 "pos": transform*point.co,
                 "next": transform*point.handle_right
