@@ -199,7 +199,10 @@ void writeMotors() {
             vertices.pop_front();
         }
         return;
-    } else if(endDistance < 1.0) {
+    }
+
+    endDistance /= speed; // TODO: adjust
+    if(endDistance < 1.0) {
         float rushFactor = (curveParam == -1.0 || vertices.size() <= 2)
             ? 0.0
             : (vertices[1].pos-vertices[1].prev).dotNormalized(vertices[1].next-vertices[1].pos);
@@ -214,7 +217,7 @@ void writeMotors() {
     if(targetIndex) {
         curveParam = findParamAtDistance(0.0);
         std::cout << "curveParam " << curveParam << std::endl;
-        float targetParam = findParamAtDistance(1.0);
+        float targetParam = findParamAtDistance(speed*0.25); // TODO: adjust
         targetPoint = bezierPointAt(targetParam);
         std::cout << "targetParam " << targetParam << std::endl;
     } else
