@@ -13,11 +13,8 @@ std::chrono::time_point<std::chrono::system_clock> runLoopLastUpdate, runLoopNow
 struct Vector {
     float coords[motorCount];
 
-    bool parseMsgPack(std::map<std::string, MsgPack::Element*>& vertexMap, const char* name) {
-        auto iter = vertexMap.find(name);
-        if(iter == vertexMap.end())
-            return false;
-        auto vectorElement = dynamic_cast<MsgPack::Array*>(iter->second);
+    bool parseMsgPack(MsgPack::Element* vectorElement) {
+        auto vectorElement = dynamic_cast<MsgPack::Array*>(vectorElement);
         if(!vectorElement)
             return false;
         auto vectorVector = vectorElement->getElementsVector();
@@ -29,7 +26,7 @@ struct Vector {
                 return false;
             coords[i] = scalarElement->getValue<float>();
         }
-        std::cout << "vector " << name << " " << *this << std::endl;
+        std::cout << *this << std::endl;
         return true;
     }
 
@@ -93,62 +90,20 @@ struct Vector {
 
 struct Vertex {
     float speed;
-    Vector prev, pos, next;
+    Vector pos;
 };
-
 std::deque<Vertex> vertices;
-float curveParam = -1.0;
 Vector position;
 
-Vector bezierPointAt(float param) {
-    Vertex& prev = vertices[0];
-    Vertex& next = vertices[1];
-    float coParam = 1.0-param,
-          paramSquared = param*param,
-          coParamSquared = coParam*coParam;
-    return prev.pos*(coParamSquared*coParam)+prev.next*(3.0*coParamSquared*param)+next.prev*(3.0*coParam*paramSquared)+next.pos*(param*paramSquared);
-}
-
-Vector bezierTangentAt(float param) {
-    Vertex& prev = vertices[0];
-    Vertex& next = vertices[1];
-    float coParam = 1.0-param,
-          paramSquared = param*param,
-          coParamSquared = coParam*coParam;
-    return ((prev.next-prev.pos)*coParamSquared+(next.prev-prev.next)*(2.0*coParam*param)+(next.pos-next.prev)*paramSquared); //.normalized();
-}
-
-float findParamAtDistance(float distance) {
-    float lowerParam = curveParam-0.1, upperParam = curveParam+0.1;
-    if(lowerParam < 0.0)
-        lowerParam = 0.0;
-    if(upperParam > 1.0)
-        upperParam = 1.0;
-    for(unsigned int i = 0; i < 16; ++i) {
-        float middleParam = (lowerParam+upperParam)*0.5,
-              distanceA = (bezierPointAt((lowerParam+middleParam)*0.5)-position).squaredLength(),
-              distanceB = (bezierPointAt((middleParam+upperParam)*0.5)-position).squaredLength();
-        if(abs(distanceA-distance) < abs(distanceB-distance))
-            upperParam = middleParam;
-        else
-            lowerParam = middleParam;
-    }
-    return (lowerParam+upperParam)*0.5;
-}
-
-void resetCommand() {
+void resetMachine() {
     vertices.clear();
-    curveParam = -1.0;
-}
-
-void releaseMotors() {
-    resetCommand();
-    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+    for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
         motors[motorIndex]->setIdle(false);
+        motors[motorIndex]->resetHome();
+    }
 }
 
 void stopMotors() {
-    resetCommand();
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
         motors[motorIndex]->stop(false);
 }
@@ -167,7 +122,7 @@ void readMotors() {
                 msgPackSocket << MsgPack::Factory("message");
                 msgPackSocket << MsgPack::Factory(error);
             }
-            releaseMotors();
+            resetMachine();
             return;
         }
         motors[motorIndex]->updatePosition();
@@ -181,54 +136,33 @@ void writeMotors() {
         stopMotors();
         return;
     }
-    unsigned int targetIndex = (curveParam == -1.0 || vertices.size() == 1) ? 0 : 1;
-    float speed = vertices[targetIndex].speed,
-          endDistance = (vertices[targetIndex].pos-position).length();
-    if(endDistance < 0.01) {
+
+    Vector targetPos = vertices[0].pos,
+           targetDiff = targetPos-position;
+    float speed = vertices[0].speed,
+          targetDist = targetDiff.length(),
+          timeLeft = targetDist/speed;
+    const finalProximity = 0.01,
+          slowDown = 0.1;
+
+    if(targetDist == 0) {
         std::cout << "reached vertex" << std::endl;
-        if(curveParam == -1.0) {
-            curveParam = 0.0;
-            std::cout << "first" << std::endl;
-        } else if(vertices.size() <= 2) {
-            curveParam = -1.0;
-            vertices.clear();
-            speed = 0;
-            std::cout << "last" << std::endl;
-        } else {
-            curveParam = 0.0;
-            vertices.pop_front();
-        }
+        vertices.pop_front();
         return;
+    } else if(timeLeft < finalProximity) {
+        std::cout << "finalizing vertex" << std::endl;
+        for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
+            motors[motorIndex]->goToInTurns(targetPos.coords[motorIndex]);
+        return;
+    } else if(timeLeft <= slowDown) {
+        std::cout << "closing in on vertex" << std::endl;
+        speed *= timeLeft/slowDown;
     }
 
-    endDistance /= speed; // TODO: adjust
-    if(endDistance < 1.0) {
-        float rushFactor = (curveParam == -1.0 || vertices.size() <= 2)
-            ? 0.0
-            : (vertices[1].pos-vertices[1].prev).dotNormalized(vertices[1].next-vertices[1].pos);
-        if(rushFactor != rushFactor || rushFactor < 0.1)
-            rushFactor = 0.1;
-        std::cout << "closing in on vertex " << rushFactor << std::endl;
-        speed *= endDistance*endDistance*(3.0-2.0*endDistance)*(1.0-rushFactor)+rushFactor;
-        std::cout << "speed " << speed << std::endl;
-    }
-
-    Vector targetPoint;
-    if(targetIndex) {
-        curveParam = findParamAtDistance(0.0);
-        std::cout << "curveParam " << curveParam << std::endl;
-        float targetParam = findParamAtDistance(speed*0.25); // TODO: adjust
-        targetPoint = bezierPointAt(targetParam);
-        std::cout << "targetParam " << targetParam << std::endl;
-    } else
-        targetPoint = vertices[0].pos;
-
-    Vector velocity = (targetPoint-position).normalized()*speed;
+    std::cout << targetDist << " " << speed << " " << timeLeft << std::endl;
+    Vector velocity = targetDiff.normalized()*speed;
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex) {
-        std::cout << motorIndex;
-        std::cout << " v: " << velocity.coords[motorIndex];
-        std::cout << " p: " << position.coords[motorIndex];
-        std::cout << " t: " << targetPoint.coords[motorIndex] << std::endl;
+        std::cout << motorIndex << " " << position.coords[motorIndex] << " " velocity.coords[motorIndex] << << std::endl;
         motors[motorIndex]->runInHz(velocity.coords[motorIndex]);
     }
 }
@@ -241,8 +175,6 @@ void networkUpdate() {
         msgPackSocket << MsgPack::Factory("status");
         msgPackSocket << MsgPack::Factory("verticesLeft");
         msgPackSocket << MsgPack::Factory(static_cast<uint64_t>(vertices.size()));
-        msgPackSocket << MsgPack::Factory("curveParam");
-        msgPackSocket << MsgPack::Factory(curveParam);
         msgPackSocket << MsgPack::Factory("position");
         msgPackSocket << MsgPack__Factory(ArrayHeader(motorCount));
         for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
@@ -251,7 +183,7 @@ void networkUpdate() {
 }
 
 void onExit(int sig) {
-    releaseMotors();
+    resetMachine();
     motorDriversActive.setValue(0);
     socketManager.listen();
     exit(0);
@@ -266,7 +198,7 @@ int main(int argc, char** argv) {
     motorDriversActive.setValue(1);
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
         motors[motorIndex] = new L6470(&bus, motorIndex);
-    releaseMotors();
+    resetMachine();
 
     socketManager.onConnectRequest = [](netLink::SocketManager* manager, std::shared_ptr<netLink::Socket> serverSocket, std::shared_ptr<netLink::Socket> clientSocket) {
         std::cout << "Accepted connection from " << clientSocket->hostRemote << ":" << clientSocket->portRemote << std::endl;
@@ -294,49 +226,42 @@ int main(int argc, char** argv) {
         if(!typeElement)
             return;
         auto type = typeElement->stdString();
-        if(type == "curve") {
-            auto iter = map.find("vertices");
+        if(type == "polygon") {
+            auto iter = map.find("speed");
+            if(iter == map.end())
+                return;
+            auto speedElement = dynamic_cast<MsgPack::Number*>(iter->second);
+            if(!speedElement)
+                return;
+            targetSpeed = speedElement->getValue<float>();
+            iter = map.find("vertices");
             if(iter == map.end())
                 return;
             auto verticesElement = dynamic_cast<MsgPack::Array*>(iter->second);
             if(!verticesElement)
                 return;
             auto verticesVector = verticesElement->getElementsVector();
-            stopMotors();
-            vertices.resize(verticesVector->size());
             for(size_t vertexIndex = 0; vertexIndex < verticesVector->size(); ++vertexIndex) {
-                Vertex& vertex = vertices[vertexIndex];
-                std::cout << "vertexIndex " << vertexIndex << std::endl;
-                auto vertexElement = dynamic_cast<MsgPack::Map*>((*verticesVector)[vertexIndex].get());
-                auto vertexMap = vertexElement->getElementsMap();
-                iter = vertexMap.find("speed");
-                if(iter == vertexMap.end())
-                    return;
-                auto scalarElement = dynamic_cast<MsgPack::Number*>(iter->second);
-                if(!scalarElement)
-                    return;
-                vertex.speed = scalarElement->getValue<float>();
-                vertex.prev.parseMsgPack(vertexMap, "prev");
-                vertex.pos.parseMsgPack(vertexMap, "pos");
-                vertex.next.parseMsgPack(vertexMap, "next");
+                std::cout << "vertex " << vertexIndex << " " << targetSpeed << " ";
+                Vertex vertex;
+                vertex.speed = targetSpeed;
+                vertex.pos.parseMsgPack((*verticesVector)[vertexIndex].get());
+                vertices.push_back(vertex);
             }
             return;
-        } else if(type == "release") {
-            releaseMotors();
+        } else if(type == "interrupt") {
+            vertices.clear();
+            Vector targetPos = position;
+            targetPos.coords[2] += 10;
+            vertices.push_back(targetPos);
             return;
-        } else if(type == "stop") {
-            stopMotors();
-            return;
-        } else if(type == "origin") {
-            if(curveParam >= 0.0)
-                return;
-            for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
-                motors[motorIndex]->resetHome();
+        } else if(type == "reset") {
+            resetMachine();
             return;
         }
         std::function<bool(L6470*)> command;
         if(type == "run") {
-            if(curveParam >= 0.0)
+            if(!vertices.empty())
                 return;
             iter = map.find("speed");
             if(iter == map.end())
