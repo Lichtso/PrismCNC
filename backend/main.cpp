@@ -122,7 +122,8 @@ void readMotors() {
                 msgPackSocket << MsgPack::Factory("message");
                 msgPackSocket << MsgPack::Factory(error);
             }
-            resetMachine();
+            vertices.clear();
+            stopMotors();
             return;
         }
         motors[motorIndex]->updatePosition();
@@ -142,12 +143,12 @@ void writeMotors() {
     const float finalProximity = 0.1,
                 slowDown = 0.15;
     std::cout << targetDist << " " << speed << " " << timeLeft << std::endl;
-    
+
     bool finished = true;
     for(size_t motorIndex = 0; motorIndex < motorCount; ++motorIndex)
 	if(!motors[motorIndex]->isAtPositionInTurns(targetPos.coords[motorIndex]))
-            finished = false; 
-    
+            finished = false;
+
     if(finished) {
         std::cout << "reached vertex" << std::endl;
         vertices.pop_front();
@@ -303,7 +304,7 @@ int main(int argc, char** argv) {
             readMotors();
             writeMotors();
 
-            std::cout << "secondsSinceLastUpdate " << secondsSinceLastUpdate << std::endl;
+            // std::cout << "secondsSinceLastUpdate " << secondsSinceLastUpdate << std::endl;
             if(secondsSinceLastUpdate > 0.01) {
                 runLoopLastUpdate = runLoopNow;
                 networkUpdate();
