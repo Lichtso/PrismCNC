@@ -8,7 +8,7 @@ Software:
 The backend is written in C++11 and the original runs on a [pcDuino-V3-nano](http://pcduino.eu/pcduino-3-nano/).
 You might want to replace it with a [Pine64](https://www.pine64.com) or [Raspberry PI](https://www.raspberrypi.org),
 but keep in mind that these need more extras like a SD card.
-The frontend is composed of a [Blender](https://www.blender.org) plugin written in Python and a supporting CLI written in JavaScript.
+You can use [my Blender addon](https://github.com/Lichtso/curve_cad) to design and export toolpaths in G-Code.
 
 
 Example hardware implementation:
