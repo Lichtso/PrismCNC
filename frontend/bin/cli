@@ -78,11 +78,11 @@ if(process.argv.length > 2) {
 const directions = {
   'd': {
     axis: axis.x,
-    sign: -1
+    sign: 1
   },
   'a': {
     axis: axis.x,
-    sign: 1
+    sign: -1
   },
   's': {
     axis: axis.y,
@@ -152,6 +152,7 @@ stdin.on('data', function(key) {
 
 function sendGcode(filePath) {
   let scale = 1, speed = 1, fastSeek = true, vertices = [];
+  const vertex = [0, 0, 0];
   function sendPolygon(newSpeedMode) {
     if(vertices.length == 0)
       return;
@@ -163,14 +164,12 @@ function sendGcode(filePath) {
     vertices = [];
   }
   function appendVertex(parts) {
-    const vertex = [];
     for(const part of parts) {
       const axis = {'X': 0, 'Y': 1, 'Z': 2}[part[0]];
       if(axis != undefined)
         vertex[axis] = parseFloat(part.substr(1))*scale;
     }
-    vertex[0] *= -1;
-    vertices.push(vertex);
+    vertices.push(vertex.slice());
   }
   const file = fs.readFileSync(filePath, 'utf-8'),
         lines = file.split('\n');
