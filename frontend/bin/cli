@@ -153,7 +153,7 @@ stdin.on('data', function(key) {
 function sendGcode(filePath) {
   let scale = 1, speed = 1, fastSeek = true, vertices = [];
   const vertex = [0, 0, 0];
-  function sendPolygon(newSpeedMode) {
+  function sendPolygon() {
     if(vertices.length == 0)
       return;
     encodeStream.write({
@@ -185,12 +185,14 @@ function sendGcode(filePath) {
         case 'G21':
           scale = 1.0;
           break;
+        case 'G0':
         case 'G00':
           if(!fastSeek)
             sendPolygon();
           fastSeek = true;
           appendVertex(parts);
           break;
+        case 'G1':
         case 'G01':
           if(fastSeek)
             sendPolygon();
